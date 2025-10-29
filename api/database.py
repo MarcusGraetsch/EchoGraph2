@@ -5,7 +5,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from loguru import logger
 
-from .config import settings
+from config import settings
 
 # Create database engine
 engine = create_engine(
