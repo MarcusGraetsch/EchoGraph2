@@ -34,7 +34,15 @@ print_header() {
 
 # Check if running as root
 if [ "$EUID" -eq 0 ]; then
-    print_warning "Please do not run this script as root. Run as a normal user with sudo privileges."
+    print_error "Please do not run this script as root!"
+    echo ""
+    echo "To fix this, create a non-root user:"
+    echo ""
+    echo "  1. Create user:     adduser echograph"
+    echo "  2. Add sudo rights: usermod -aG sudo echograph"
+    echo "  3. Switch user:     su - echograph"
+    echo "  4. Re-run script:   cd ~/EchoGraph2 && ./scripts/deploy-contabo.sh"
+    echo ""
     exit 1
 fi
 
