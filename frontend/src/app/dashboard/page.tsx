@@ -3,6 +3,7 @@
 import { useState, useRef } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Progress } from '@/components/ui/progress'
 import {
   FileText,
   Upload,
@@ -10,8 +11,17 @@ import {
   GitCompare,
   CheckCircle,
   AlertCircle,
-  X
+  X,
+  Loader2
 } from 'lucide-react'
+import { documentApi } from '@/lib/api'
+
+interface FileUploadStatus {
+  file: File
+  progress: number
+  status: 'pending' | 'uploading' | 'success' | 'error'
+  error?: string
+}
 
 export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState('')
@@ -19,6 +29,9 @@ export default function Dashboard() {
   const [isDragging, setIsDragging] = useState(false)
   const [showUploadModal, setShowUploadModal] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
+  const [documentType, setDocumentType] = useState<'norm' | 'guideline'>('norm')
+  const [uploadStatuses, setUploadStatuses] = useState<FileUploadStatus[]>([])
+  const [isUploading, setIsUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Handle file selection
@@ -72,6 +85,78 @@ export default function Dashboard() {
   // Remove file from selection
   const removeFile = (index: number) => {
     setSelectedFiles(prev => prev.filter((_, i) => i !== index))
+  }
+
+  // Handle file upload
+  const handleUpload = async () => {
+    if (selectedFiles.length === 0 || !documentType) return
+
+    setIsUploading(true)
+
+    // Initialize upload statuses
+    const statuses: FileUploadStatus[] = selectedFiles.map(file => ({
+      file,
+      progress: 0,
+      status: 'pending' as const
+    }))
+    setUploadStatuses(statuses)
+
+    // Upload files sequentially
+    for (let i = 0; i < selectedFiles.length; i++) {
+      try {
+        // Update status to uploading
+        setUploadStatuses(prev =>
+          prev.map((status, idx) =>
+            idx === i ? { ...status, status: 'uploading' } : status
+          )
+        )
+
+        // Upload file
+        await documentApi.upload(
+          selectedFiles[i],
+          documentType,
+          (progress) => {
+            setUploadStatuses(prev =>
+              prev.map((status, idx) =>
+                idx === i ? { ...status, progress } : status
+              )
+            )
+          }
+        )
+
+        // Update status to success
+        setUploadStatuses(prev =>
+          prev.map((status, idx) =>
+            idx === i ? { ...status, status: 'success', progress: 100 } : status
+          )
+        )
+      } catch (error: any) {
+        // Update status to error
+        setUploadStatuses(prev =>
+          prev.map((status, idx) =>
+            idx === i
+              ? {
+                  ...status,
+                  status: 'error',
+                  error: error.response?.data?.detail || error.message || 'Upload failed'
+                }
+              : status
+          )
+        )
+      }
+    }
+
+    setIsUploading(false)
+
+    // If all uploads successful, close modal after delay
+    setTimeout(() => {
+      const allSuccess = uploadStatuses.every(s => s.status === 'success')
+      if (allSuccess) {
+        setShowUploadModal(false)
+        setSelectedFiles([])
+        setUploadStatuses([])
+      }
+    }, 2000)
   }
 
   return (
@@ -279,26 +364,48 @@ export default function Dashboard() {
                 <div className="mb-4">
                   <h3 className="font-semibold mb-2">Selected Files ({selectedFiles.length})</h3>
                   <div className="space-y-2 max-h-48 overflow-y-auto">
-                    {selectedFiles.map((file, index) => (
-                      <div
-                        key={index}
-                        className="flex items-center justify-between p-3 bg-muted rounded-md"
-                      >
-                        <div className="flex items-center gap-2 flex-1 min-w-0">
-                          <FileText className="h-4 w-4 flex-shrink-0" />
-                          <span className="text-sm truncate">{file.name}</span>
-                          <span className="text-xs text-muted-foreground flex-shrink-0">
-                            ({(file.size / 1024).toFixed(1)} KB)
-                          </span>
+                    {selectedFiles.map((file, index) => {
+                      const status = uploadStatuses[index]
+                      return (
+                        <div key={index} className="p-3 bg-muted rounded-md">
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2 flex-1 min-w-0">
+                              {status?.status === 'success' ? (
+                                <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
+                              ) : status?.status === 'error' ? (
+                                <AlertCircle className="h-4 w-4 text-red-500 flex-shrink-0" />
+                              ) : status?.status === 'uploading' ? (
+                                <Loader2 className="h-4 w-4 animate-spin flex-shrink-0" />
+                              ) : (
+                                <FileText className="h-4 w-4 flex-shrink-0" />
+                              )}
+                              <span className="text-sm truncate">{file.name}</span>
+                              <span className="text-xs text-muted-foreground flex-shrink-0">
+                                ({(file.size / 1024).toFixed(1)} KB)
+                              </span>
+                            </div>
+                            {!status && (
+                              <button
+                                onClick={() => removeFile(index)}
+                                className="text-muted-foreground hover:text-destructive flex-shrink-0"
+                                disabled={isUploading}
+                              >
+                                <X className="h-4 w-4" />
+                              </button>
+                            )}
+                          </div>
+                          {status && status.status === 'uploading' && (
+                            <Progress value={status.progress} className="h-2" />
+                          )}
+                          {status?.status === 'error' && (
+                            <p className="text-xs text-red-500 mt-1">{status.error}</p>
+                          )}
+                          {status?.status === 'success' && (
+                            <p className="text-xs text-green-600 mt-1">Upload successful!</p>
+                          )}
                         </div>
-                        <button
-                          onClick={() => removeFile(index)}
-                          className="text-muted-foreground hover:text-destructive flex-shrink-0"
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 </div>
               )}
@@ -307,8 +414,12 @@ export default function Dashboard() {
               {selectedFiles.length > 0 && (
                 <div className="mb-4">
                   <label className="block text-sm font-medium mb-2">Document Type</label>
-                  <select className="w-full px-4 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-ring">
-                    <option value="">Select document type...</option>
+                  <select
+                    className="w-full px-4 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
+                    value={documentType}
+                    onChange={(e) => setDocumentType(e.target.value as 'norm' | 'guideline')}
+                    disabled={isUploading}
+                  >
                     <option value="norm">Norm / Regulation</option>
                     <option value="guideline">Company Guideline</option>
                   </select>
@@ -322,21 +433,24 @@ export default function Dashboard() {
                   onClick={() => {
                     setShowUploadModal(false)
                     setSelectedFiles([])
+                    setUploadStatuses([])
                   }}
+                  disabled={isUploading}
                 >
-                  Cancel
+                  {isUploading ? 'Uploading...' : 'Cancel'}
                 </Button>
                 <Button
-                  onClick={() => {
-                    if (selectedFiles.length > 0) {
-                      alert(`Ready to upload ${selectedFiles.length} file(s)!\n\nAPI integration will be added in the next step.`)
-                      setShowUploadModal(false)
-                      setSelectedFiles([])
-                    }
-                  }}
-                  disabled={selectedFiles.length === 0}
+                  onClick={handleUpload}
+                  disabled={selectedFiles.length === 0 || isUploading}
                 >
-                  Upload {selectedFiles.length > 0 && `(${selectedFiles.length})`}
+                  {isUploading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Uploading...
+                    </>
+                  ) : (
+                    <>Upload {selectedFiles.length > 0 && `(${selectedFiles.length})`}</>
+                  )}
                 </Button>
               </div>
             </div>

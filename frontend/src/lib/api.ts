@@ -30,4 +30,46 @@ api.interceptors.response.use(
   }
 )
 
+// Document API functions
+export const documentApi = {
+  // Upload a document
+  upload: async (
+    file: File,
+    documentType: 'norm' | 'guideline',
+    onProgress?: (progress: number) => void
+  ) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('document_type', documentType)
+    formData.append('title', file.name)
+
+    return api.post('/documents/upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+      onUploadProgress: (progressEvent) => {
+        if (onProgress && progressEvent.total) {
+          const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total)
+          onProgress(progress)
+        }
+      },
+    })
+  },
+
+  // Get all documents
+  list: async () => {
+    return api.get('/documents/')
+  },
+
+  // Get document by ID
+  get: async (id: number) => {
+    return api.get(`/documents/${id}`)
+  },
+
+  // Search documents
+  search: async (query: string) => {
+    return api.post('/search/', { query })
+  },
+}
+
 export default api
