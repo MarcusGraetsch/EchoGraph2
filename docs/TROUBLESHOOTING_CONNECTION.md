@@ -1,13 +1,26 @@
-# Troubleshooting: Can't Access Application (Connection Timeout)
+# Troubleshooting: Can't Access Application
 
-## Problem
+## Error Types
 
-When accessing your application via `http://YOUR_IP:3000`, you get:
-- `ERR_CONNECTION_TIMED_OUT`
-- `This site can't be reached`
-- `Connection refused`
+### 1. Connection Timed Out (ERR_CONNECTION_TIMED_OUT)
 
-## Quick Fix (Most Common)
+**Symptom:** "This site can't be reached", "took too long to respond"
+
+**Cause:** Firewall is blocking the connection
+
+**Fix:** See [Firewall Configuration](#quick-fix-most-common) below
+
+### 2. Connection Refused (ERR_CONNECTION_REFUSED)
+
+**Symptom:** "This site can't be reached", "refused to connect"
+
+**Cause:** Firewall is open, but services aren't running
+
+**Fix:** See [Connection Refused Guide](TROUBLESHOOTING_REFUSED.md) - Services not running or crashed
+
+---
+
+## Quick Fix (Most Common) - For Timed Out Errors
 
 This is usually a **firewall issue**. Run these commands on your VM:
 
