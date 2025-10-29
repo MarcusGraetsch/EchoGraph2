@@ -10,7 +10,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import ARRAY
 import enum
 
-from .database import Base
+from database import Base
 
 
 class DocumentType(str, enum.Enum):
