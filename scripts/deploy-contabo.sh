@@ -167,16 +167,29 @@ print_success "Data directories created"
 
 # Step 8: Start Services
 print_header "Step 8: Starting Docker Services"
-print_warning "Note: You may need to log out and back in for Docker group changes to take effect"
-echo "If this fails with permission errors, run: newgrp docker"
-echo ""
+
+# Check if we can run docker without sudo
+if docker ps >/dev/null 2>&1; then
+    print_success "Docker permissions OK"
+    DOCKER_CMD="docker"
+    COMPOSE_CMD="docker-compose"
+else
+    print_warning "Docker group changes not yet active, using sudo for this session"
+    DOCKER_CMD="sudo docker"
+    COMPOSE_CMD="sudo docker-compose"
+fi
 
 # Try to start services
-if docker-compose up -d; then
+if $COMPOSE_CMD up -d 2>&1 | grep -v "attribute.*version.*obsolete"; then
     print_success "Services started successfully"
 else
-    print_error "Failed to start services. Try running: newgrp docker"
-    print_error "Then run: cd ~/EchoGraph2 && docker-compose up -d"
+    print_error "Failed to start services"
+    echo ""
+    echo "To fix this:"
+    echo "  1. Log out and log back in (for Docker group to take effect)"
+    echo "  2. Or run: newgrp docker"
+    echo "  3. Then run: cd ~/EchoGraph2 && docker-compose up -d"
+    echo ""
     exit 1
 fi
 
@@ -186,14 +199,14 @@ echo "Waiting 30 seconds for services to initialize..."
 sleep 30
 
 # Check service status
-docker-compose ps
+$COMPOSE_CMD ps
 
 # Step 10: Initialize Database
 print_header "Step 10: Initializing Database"
-if docker-compose exec -T api python -c "from database import init_db; init_db()" 2>/dev/null; then
+if $COMPOSE_CMD exec -T api python -c "from database import init_db; init_db()" 2>/dev/null; then
     print_success "Database initialized"
 else
-    print_warning "Database initialization may have failed. Check logs with: docker-compose logs api"
+    print_warning "Database initialization may have failed. Check logs with: ${COMPOSE_CMD} logs api"
 fi
 
 # Final Summary
@@ -210,10 +223,10 @@ echo ""
 echo "Credentials are saved in: $(pwd)/.env"
 echo ""
 echo "Useful commands:"
-echo "  • View logs:       docker-compose logs -f"
-echo "  • Stop services:   docker-compose down"
-echo "  • Start services:  docker-compose up -d"
-echo "  • Restart:         docker-compose restart"
+echo "  • View logs:       ${COMPOSE_CMD} logs -f"
+echo "  • Stop services:   ${COMPOSE_CMD} down"
+echo "  • Start services:  ${COMPOSE_CMD} up -d"
+echo "  • Restart:         ${COMPOSE_CMD} restart"
 echo ""
 echo "Next steps:"
 echo "  1. Review and update .env file if needed"
@@ -221,4 +234,9 @@ echo "  2. Set up Nginx reverse proxy (see docs/deployment-contabo.md)"
 echo "  3. Install SSL certificate with Let's Encrypt"
 echo "  4. Configure backups"
 echo ""
+if [ "$COMPOSE_CMD" = "sudo docker-compose" ]; then
+    print_warning "Note: Log out and back in to use Docker without sudo"
+    echo "Or run: newgrp docker"
+    echo ""
+fi
 print_success "Setup complete! Visit http://$SERVER_IP:3000 to get started."

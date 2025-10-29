@@ -32,6 +32,19 @@ cd EchoGraph2
 
 **Note:** The script must be run as a regular user with sudo privileges, not as root.
 
+### If You Get Docker Permission Error
+
+The script will automatically use `sudo` for Docker commands if needed. After deployment, log out and back in to use Docker without sudo.
+
+Or run this to activate Docker group immediately:
+```bash
+newgrp docker
+cd ~/EchoGraph2
+./scripts/deploy-contabo.sh
+```
+
+**See [Docker Permission Fix](DOCKER_PERMISSION_FIX.md)** if you encounter issues.
+
 That's it! 🎉 The script will:
 - Update your system
 - Install Docker & Docker Compose
