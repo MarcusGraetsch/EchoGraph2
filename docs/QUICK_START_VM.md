@@ -1,23 +1,36 @@
 # Quick Start: Deploy EchoGraph on Your Contabo VM
 
-## TL;DR - Fastest Method
+## Important: User Setup First
 
-SSH into your Contabo VM and run:
+**If you're logged in as root**, create a non-root user first:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/MarcusGraetsch/EchoGraph2/main/scripts/deploy-contabo.sh | bash
+# 1. Create a new user
+adduser echograph
+
+# 2. Add to sudo group
+usermod -aG sudo echograph
+
+# 3. Switch to the new user
+su - echograph
+
+# 4. Now you're ready to deploy!
 ```
 
-Or manually:
+## TL;DR - Fastest Method
+
+SSH into your Contabo VM (as non-root user) and run:
 
 ```bash
-# 1. Clone repository
+# Clone repository
 git clone https://github.com/MarcusGraetsch/EchoGraph2.git
 cd EchoGraph2
 
-# 2. Run deployment script
+# Run deployment script
 ./scripts/deploy-contabo.sh
 ```
+
+**Note:** The script must be run as a regular user with sudo privileges, not as root.
 
 That's it! 🎉 The script will:
 - Update your system
