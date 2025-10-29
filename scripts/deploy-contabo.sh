@@ -153,6 +153,8 @@ if [ ! -f ".env" ]; then
     SERVER_IP=$(curl -s ifconfig.me)
     sed -i "s|NEXT_PUBLIC_API_URL=.*|NEXT_PUBLIC_API_URL=http://$SERVER_IP:8000|g" .env
     sed -i "s|NEXT_PUBLIC_WS_URL=.*|NEXT_PUBLIC_WS_URL=ws://$SERVER_IP:8000|g" .env
+    sed -i "s|API_HOST=.*|API_HOST=http://$SERVER_IP:8000|g" .env
+    sed -i "s|WS_HOST=.*|WS_HOST=ws://$SERVER_IP:8000|g" .env
 
     print_success "Environment configured with random secure passwords"
     echo ""
