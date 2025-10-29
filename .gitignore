@@ -240,3 +240,6 @@ logs/
 # Temporary files
 *.tmp
 *.temp
+
+# GitHub Actions workflows (add manually due to permissions)
+.github/workflows/
