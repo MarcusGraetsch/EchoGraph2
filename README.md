@@ -38,19 +38,27 @@ EchoGraph/
 
 ## Quick Start
 
-### Prerequisites
+### Deploy to Server (Contabo, DigitalOcean, AWS, etc.)
 
-- Docker & Docker Compose
-- Node.js 18+
-- Python 3.11+
-- PostgreSQL 15+ with pgvector extension
+**One-command deployment on Ubuntu:**
+
+```bash
+# SSH into your server, then run:
+git clone https://github.com/MarcusGraetsch/EchoGraph2.git
+cd EchoGraph2
+./scripts/deploy-contabo.sh
+```
+
+📖 **See [Quick Start for VMs](docs/QUICK_START_VM.md)** for detailed server deployment.
+
+📚 **Full deployment guide**: [Contabo/Ubuntu Deployment](docs/deployment-contabo.md)
 
 ### Local Development
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/yourusername/echograph.git
-   cd echograph
+   git clone https://github.com/MarcusGraetsch/EchoGraph2.git
+   cd EchoGraph2
    ```
 
 2. **Set up environment variables**
@@ -69,6 +77,13 @@ EchoGraph/
    - API: http://localhost:8000
    - API Docs: http://localhost:8000/docs
    - n8n: http://localhost:5678
+
+### Prerequisites
+
+- Docker & Docker Compose
+- Node.js 18+ (for local frontend development)
+- Python 3.11+ (for local backend development)
+- 4GB+ RAM, 20GB+ disk space
 
 ## Documentation
 
