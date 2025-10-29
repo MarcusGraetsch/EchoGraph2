@@ -9,9 +9,9 @@ import os
 import uuid
 from loguru import logger
 
-from ..database import get_db
-from ..models import Document, DocumentType, DocumentStatus, User
-from ..schemas import (
+from database import get_db
+from models import Document, DocumentType, DocumentStatus, User
+from schemas import (
     DocumentResponse,
     DocumentCreate,
     DocumentUpdate,
@@ -19,8 +19,8 @@ from ..schemas import (
     DocumentDetailResponse,
     Statistics
 )
-from ..auth import get_current_active_user
-from ..config import settings
+from auth import get_current_active_user
+from config import settings
 
 router = APIRouter()
 
@@ -290,7 +290,7 @@ async def get_statistics(
     Returns:
         Statistics
     """
-    from ..models import DocumentRelationship, ValidationStatus
+    from models import DocumentRelationship, ValidationStatus
 
     total_documents = db.query(Document).count()
     total_norms = db.query(Document).filter(Document.document_type == DocumentType.NORM).count()
