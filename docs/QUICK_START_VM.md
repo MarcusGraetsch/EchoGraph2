@@ -62,6 +62,25 @@ After deployment completes (5-10 minutes), access:
 - **n8n**: http://YOUR_SERVER_IP:5678
 - **MinIO**: http://YOUR_SERVER_IP:9001
 
+### Can't Access? (Connection Timeout)
+
+If you get "connection timed out" or "site can't be reached":
+
+**Quick Fix:**
+```bash
+# Open ports in firewall
+sudo ufw allow 3000/tcp
+sudo ufw allow 8000/tcp
+sudo ufw allow 5678/tcp
+sudo ufw allow 9000/tcp
+sudo ufw allow 9001/tcp
+sudo ufw reload
+```
+
+**Also check Contabo Control Panel** - Contabo has its own firewall that needs configuration!
+
+📖 **See [Connection Troubleshooting Guide](TROUBLESHOOTING_CONNECTION.md)** for detailed help.
+
 ## What the Script Does
 
 1. ✅ Updates Ubuntu system packages

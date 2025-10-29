@@ -69,8 +69,16 @@ sudo ufw allow 80/tcp
 sudo ufw allow 443/tcp
 sudo ufw allow 3000/tcp
 sudo ufw allow 8000/tcp
+sudo ufw allow 5678/tcp
+sudo ufw allow 9000/tcp
+sudo ufw allow 9001/tcp
 sudo ufw --force enable
 print_success "Firewall configured"
+echo ""
+print_warning "IMPORTANT: If using Contabo, also configure firewall in Contabo Control Panel!"
+echo "Add rules for ports: 22, 80, 443, 3000, 8000, 5678, 9000, 9001"
+echo ""
+read -p "Press Enter to continue..."
 
 # Step 3: Install Docker
 print_header "Step 3: Installing Docker"
@@ -219,6 +227,11 @@ echo "  • Frontend:    http://$SERVER_IP:3000"
 echo "  • API Docs:    http://$SERVER_IP:8000/docs"
 echo "  • n8n:         http://$SERVER_IP:5678"
 echo "  • MinIO:       http://$SERVER_IP:9001"
+echo ""
+print_warning "IMPORTANT: Can't access the application?"
+echo "1. Check Contabo Control Panel firewall settings"
+echo "2. Ensure ports 3000, 8000, 5678, 9000, 9001 are open"
+echo "3. See: docs/TROUBLESHOOTING_CONNECTION.md"
 echo ""
 echo "Credentials are saved in: $(pwd)/.env"
 echo ""
