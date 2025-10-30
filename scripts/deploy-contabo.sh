@@ -171,6 +171,9 @@ if [ ! -f ".env" ]; then
     POSTGRES_PASSWORD=$(openssl rand -hex 16)  # 32 chars, URL-safe (no +, /, =)
     MINIO_SECRET=$(openssl rand -hex 32)
     N8N_PASSWORD=$(openssl rand -base64 16)  # OK to use base64 (not in URL)
+    KEYCLOAK_ADMIN_PASSWORD=$(openssl rand -hex 16)  # Keycloak admin password
+    KEYCLOAK_DB_PASSWORD=$(openssl rand -hex 16)  # Keycloak database password
+    KEYCLOAK_CLIENT_SECRET=$(openssl rand -hex 32)  # API client secret
 
     # Get server IP
     SERVER_IP=$(curl -s ifconfig.me)
@@ -209,6 +212,19 @@ N8N_BASIC_AUTH_ACTIVE=true
 N8N_BASIC_AUTH_USER=admin
 N8N_BASIC_AUTH_PASSWORD=$N8N_PASSWORD
 
+# Keycloak Configuration
+KEYCLOAK_ADMIN=admin
+KEYCLOAK_ADMIN_PASSWORD=$KEYCLOAK_ADMIN_PASSWORD
+KEYCLOAK_DB=keycloak
+KEYCLOAK_DB_USER=keycloak
+KEYCLOAK_DB_PASSWORD=$KEYCLOAK_DB_PASSWORD
+KEYCLOAK_REALM=echograph
+KEYCLOAK_CLIENT_ID=echograph-api
+KEYCLOAK_CLIENT_SECRET=$KEYCLOAK_CLIENT_SECRET
+KEYCLOAK_FRONTEND_CLIENT_ID=echograph-frontend
+KEYCLOAK_SERVER_URL=http://keycloak:8080
+KEYCLOAK_PUBLIC_URL=http://$SERVER_IP:8080
+
 # Redis / Celery Configuration
 REDIS_URL=redis://redis:6379/0
 CELERY_BROKER_URL=redis://redis:6379/0
@@ -242,12 +258,15 @@ EOF
     echo ""
     echo "Generated Credentials:"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "  PostgreSQL Password: $POSTGRES_PASSWORD"
-    echo "  MinIO Secret Key:    $MINIO_SECRET"
-    echo "  n8n Username:        admin"
-    echo "  n8n Password:        $N8N_PASSWORD"
-    echo "  API Secret Key:      $API_SECRET"
-    echo "  Server IP:           $SERVER_IP"
+    echo "  PostgreSQL Password:     $POSTGRES_PASSWORD"
+    echo "  MinIO Secret Key:        $MINIO_SECRET"
+    echo "  n8n Username:            admin"
+    echo "  n8n Password:            $N8N_PASSWORD"
+    echo "  Keycloak Admin Username: admin"
+    echo "  Keycloak Admin Password: $KEYCLOAK_ADMIN_PASSWORD"
+    echo "  Keycloak DB Password:    $KEYCLOAK_DB_PASSWORD"
+    echo "  API Secret Key:          $API_SECRET"
+    echo "  Server IP:               $SERVER_IP"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo ""
     print_warning "IMPORTANT: Save these credentials securely!"
@@ -639,6 +658,7 @@ check_service "redis" || services_ok=false
 check_service "minio" || services_ok=false
 check_service "qdrant" || services_ok=false
 check_service "n8n" || services_ok=false
+check_service "keycloak" || services_ok=false
 
 echo ""
 echo "Checking application services:"
