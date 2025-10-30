@@ -306,6 +306,164 @@ mkdir -p data/raw data/processed
 chmod 755 data/raw data/processed
 print_success "Data directories created"
 
+# Step 7.5: Check System Resources
+print_header "Step 7.5: Checking System Resources"
+
+# Function to check if port is available
+check_port() {
+    local port=$1
+    local service=$2
+    if lsof -Pi :$port -sTCP:LISTEN -t >/dev/null 2>&1 || netstat -ln 2>/dev/null | grep -q ":$port "; then
+        print_error "Port $port ($service) is already in use"
+        echo "  To see what's using it: sudo lsof -i :$port"
+        echo "  To kill the process: sudo kill \$(sudo lsof -t -i:$port)"
+        return 1
+    else
+        print_success "Port $port ($service) is available"
+        return 0
+    fi
+}
+
+# Function to convert memory values to MB
+to_mb() {
+    local value=$1
+    local unit=$2
+    case $unit in
+        kB) echo $((value / 1024)) ;;
+        MB) echo $value ;;
+        GB) echo $((value * 1024)) ;;
+        *) echo $value ;;
+    esac
+}
+
+# Check all required ports
+print_info "Checking port availability..."
+ports_ok=true
+check_port 3000 "Frontend" || ports_ok=false
+check_port 8000 "API" || ports_ok=false
+check_port 5432 "PostgreSQL" || ports_ok=false
+check_port 6379 "Redis" || ports_ok=false
+check_port 6333 "Qdrant" || ports_ok=false
+check_port 6334 "Qdrant gRPC" || ports_ok=false
+check_port 9000 "MinIO" || ports_ok=false
+check_port 9001 "MinIO Console" || ports_ok=false
+check_port 5678 "n8n" || ports_ok=false
+
+if [ "$ports_ok" = false ]; then
+    echo ""
+    print_error "Some ports are already in use!"
+    echo ""
+    echo "You have two options:"
+    echo "  1. Stop the services using these ports"
+    echo "  2. Use different ports (requires editing docker-compose.yml)"
+    echo ""
+    read -p "Continue anyway? (NOT recommended) (y/n) " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        exit 1
+    fi
+fi
+
+echo ""
+print_info "Checking system resources..."
+
+# Check RAM
+total_ram=$(grep MemTotal /proc/meminfo | awk '{print $2}')
+total_ram_mb=$(to_mb $total_ram kB)
+available_ram=$(grep MemAvailable /proc/meminfo | awk '{print $2}')
+available_ram_mb=$(to_mb $available_ram kB)
+
+echo "  Total RAM: ${total_ram_mb} MB"
+echo "  Available RAM: ${available_ram_mb} MB"
+
+if [ $total_ram_mb -lt 4096 ]; then
+    print_error "WARNING: Less than 4GB RAM detected (${total_ram_mb} MB)"
+    echo "  Recommended: At least 4GB RAM (8GB preferred)"
+    echo "  EchoGraph may run slowly or crash with insufficient memory"
+    echo ""
+elif [ $total_ram_mb -lt 8192 ]; then
+    print_warning "Only ${total_ram_mb} MB RAM detected"
+    echo "  Recommended: 8GB RAM for optimal performance"
+    echo "  Current RAM may be sufficient but performance could be limited"
+    echo ""
+else
+    print_success "RAM: ${total_ram_mb} MB (sufficient)"
+fi
+
+if [ $available_ram_mb -lt 2048 ]; then
+    print_error "WARNING: Less than 2GB available RAM (${available_ram_mb} MB)"
+    echo "  Consider stopping other services or upgrading RAM"
+    echo ""
+fi
+
+# Check CPU cores
+cpu_cores=$(nproc)
+echo "  CPU Cores: $cpu_cores"
+
+if [ $cpu_cores -lt 2 ]; then
+    print_error "WARNING: Less than 2 CPU cores detected ($cpu_cores)"
+    echo "  Recommended: At least 2 CPU cores (4+ preferred)"
+    echo "  EchoGraph may run very slowly with single core"
+    echo ""
+elif [ $cpu_cores -lt 4 ]; then
+    print_warning "Only $cpu_cores CPU cores detected"
+    echo "  Recommended: 4+ CPU cores for optimal performance"
+    echo ""
+else
+    print_success "CPU Cores: $cpu_cores (sufficient)"
+fi
+
+# Check disk space
+disk_space=$(df -BG . | tail -1 | awk '{print $4}' | sed 's/G//')
+echo "  Available Disk Space: ${disk_space} GB"
+
+if [ $disk_space -lt 10 ]; then
+    print_error "WARNING: Less than 10GB disk space available (${disk_space} GB)"
+    echo "  Recommended: At least 20GB free space for documents and databases"
+    echo "  Deployment may fail or system may crash"
+    echo ""
+    read -p "Continue anyway? (NOT recommended) (y/n) " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        exit 1
+    fi
+elif [ $disk_space -lt 20 ]; then
+    print_warning "Only ${disk_space} GB disk space available"
+    echo "  Recommended: At least 20GB free space"
+    echo "  May run out of space with large document uploads"
+    echo ""
+else
+    print_success "Disk Space: ${disk_space} GB (sufficient)"
+fi
+
+# Resource summary
+echo ""
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "  Resource Summary:"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "  RAM:        ${total_ram_mb} MB (${available_ram_mb} MB available)"
+echo "  CPU:        ${cpu_cores} cores"
+echo "  Disk:       ${disk_space} GB available"
+echo "  Ports:      $([ "$ports_ok" = true ] && echo "All clear" || echo "Some in use")"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+
+# Minimum requirements check
+if [ $total_ram_mb -lt 3072 ] || [ $cpu_cores -lt 1 ] || [ $disk_space -lt 5 ]; then
+    print_error "System does not meet minimum requirements!"
+    echo ""
+    echo "Minimum Requirements:"
+    echo "  - RAM: 3GB (you have: ${total_ram_mb} MB)"
+    echo "  - CPU: 1 core (you have: $cpu_cores)"
+    echo "  - Disk: 5GB (you have: ${disk_space} GB)"
+    echo ""
+    read -p "Continue anyway? (May fail or crash) (y/n) " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        exit 1
+    fi
+fi
+
 # Step 8: Start Services
 print_header "Step 8: Starting Docker Services"
 
@@ -410,15 +568,50 @@ if [ "$services_ok" = false ]; then
     echo ""
 
     # Check API logs for common issues
-    api_logs=$($COMPOSE_CMD logs --tail=20 api 2>&1)
-    if echo "$api_logs" | grep -q "password authentication failed"; then
+    api_logs=$($COMPOSE_CMD logs --tail=30 api 2>&1)
+
+    if echo "$api_logs" | grep -q "ImportError\|ModuleNotFoundError"; then
+        print_error "Python import error detected"
+        echo "  Issue: Missing Python dependencies or import path issues"
+        echo "  Fix: Rebuilding API container with fresh dependencies..."
+        $COMPOSE_CMD build --no-cache api
+        $COMPOSE_CMD up -d api
+        sleep 15
+
+    elif echo "$api_logs" | grep -q "password authentication failed"; then
         print_error "Database authentication error detected"
         echo "  Issue: API cannot connect to PostgreSQL with current password"
+        echo "  Checking .env file for password mismatch..."
+
+        # Check if passwords match
+        postgres_pass=$(grep "^POSTGRES_PASSWORD=" .env | cut -d'=' -f2)
+        db_url_pass=$(grep "^DATABASE_URL=" .env | grep -oP 'echograph:\K[^@]+')
+
+        if [ "$postgres_pass" != "$db_url_pass" ]; then
+            print_error "Password mismatch detected in .env file!"
+            echo "  POSTGRES_PASSWORD: $postgres_pass"
+            echo "  DATABASE_URL password: $db_url_pass"
+            echo "  Fix: Updating DATABASE_URL to match POSTGRES_PASSWORD..."
+            sed -i "s|DATABASE_URL=.*|DATABASE_URL=postgresql://echograph:$postgres_pass@postgres:5432/echograph|g" .env
+            print_success "PASSWORD_URL updated"
+        fi
+
         echo "  Fix: Restarting database and API services..."
         $COMPOSE_CMD restart postgres
         sleep 5
         $COMPOSE_CMD restart api
         sleep 10
+
+    elif echo "$api_logs" | grep -q "Address already in use\|bind.*failed"; then
+        print_error "Port conflict detected"
+        echo "  Issue: API port 8000 is already in use"
+        echo "  Check what's using the port: sudo lsof -i :8000"
+        echo "  Kill the process: sudo kill \$(sudo lsof -t -i:8000)"
+        echo ""
+        read -p "Have you freed port 8000? Press Enter to retry..."
+        $COMPOSE_CMD restart api
+        sleep 10
+
     elif echo "$api_logs" | grep -q "Connection refused"; then
         print_error "Service connection error detected"
         echo "  Issue: API cannot reach dependent services"
@@ -427,6 +620,25 @@ if [ "$services_ok" = false ]; then
         sleep 10
         $COMPOSE_CMD restart api celery-worker frontend
         sleep 10
+
+    elif echo "$api_logs" | grep -q "Out of memory\|MemoryError\|Cannot allocate memory"; then
+        print_error "Out of memory error detected"
+        echo "  Issue: Insufficient RAM to run all services"
+        echo "  Current system memory:"
+        free -h
+        echo ""
+        echo "  Solutions:"
+        echo "    1. Stop other services to free memory"
+        echo "    2. Upgrade server RAM (recommended: 8GB+)"
+        echo "    3. Add swap space (temporary solution)"
+        echo ""
+        read -p "Press Enter to continue (services may continue to fail)..."
+
+    else
+        print_warning "Unable to identify specific error. Showing recent API logs:"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        $COMPOSE_CMD logs --tail=15 api
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     fi
 
     # Re-check services after fix attempt
@@ -444,11 +656,30 @@ if [ "$services_ok" = false ]; then
         echo "  ${COMPOSE_CMD} logs api"
         echo "  ${COMPOSE_CMD} logs frontend"
         echo "  ${COMPOSE_CMD} logs postgres"
+        echo "  ${COMPOSE_CMD} logs celery-worker"
         echo ""
-        echo "Common issues:"
-        echo "  1. Database password mismatch - check .env file"
-        echo "  2. Port conflicts - check if ports 3000, 8000, 5432 are available"
-        echo "  3. Resource limits - ensure enough RAM/CPU available"
+        echo "Common issues and solutions:"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo "  1. Database password mismatch:"
+        echo "     Check: grep PASSWORD .env"
+        echo "     Fix: Ensure POSTGRES_PASSWORD matches password in DATABASE_URL"
+        echo ""
+        echo "  2. Port conflicts:"
+        echo "     Check: sudo lsof -i :8000"
+        echo "     Fix: sudo kill \$(sudo lsof -t -i:8000)"
+        echo ""
+        echo "  3. Import errors:"
+        echo "     Fix: ${COMPOSE_CMD} build --no-cache api && ${COMPOSE_CMD} up -d api"
+        echo ""
+        echo "  4. Resource limits:"
+        echo "     Check: free -h && df -h"
+        echo "     Fix: Stop other services or upgrade server"
+        echo ""
+        echo "  5. Rebuild everything (last resort):"
+        echo "     ${COMPOSE_CMD} down -v"
+        echo "     ${COMPOSE_CMD} build --no-cache"
+        echo "     ${COMPOSE_CMD} up -d"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
         echo ""
         read -p "Continue anyway? (y/n) " -n 1 -r
         echo
