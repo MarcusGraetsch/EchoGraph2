@@ -503,8 +503,39 @@ else
     COMPOSE_CMD="sudo docker-compose"
 fi
 
-# Stop any existing services
-$COMPOSE_CMD down 2>/dev/null || true
+# Stop any existing services and clean volumes for fresh start
+print_info "Ensuring clean environment..."
+
+# Check if there are existing volumes
+existing_volumes=$($DOCKER_CMD volume ls -q | grep -E "echograph|EchoGraph2" || true)
+
+if [ -n "$existing_volumes" ]; then
+    print_warning "Found existing Docker volumes from previous deployment"
+    echo "  Volumes: $existing_volumes"
+    echo ""
+    echo "These must be removed to ensure correct password configuration."
+    echo ""
+    read -p "Remove existing volumes? (Required for fresh deployment) (y/n) " -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        print_info "Stopping services and removing volumes..."
+        $COMPOSE_CMD down -v 2>/dev/null || true
+        print_success "Volumes cleaned"
+    else
+        print_error "Cannot proceed with existing volumes - password mismatch will occur"
+        echo ""
+        echo "To manually clean volumes:"
+        echo "  $COMPOSE_CMD down -v"
+        echo ""
+        exit 1
+    fi
+else
+    # No existing volumes, just stop any running containers
+    $COMPOSE_CMD down 2>/dev/null || true
+    print_success "Environment clean"
+fi
+
+echo ""
 
 # Start services
 print_info "Starting Docker containers..."
@@ -618,13 +649,25 @@ if [ "$services_ok" = false ]; then
             echo "  DATABASE_URL password: $db_url_pass"
             echo "  Fix: Updating DATABASE_URL to match POSTGRES_PASSWORD..."
             sed -i "s|DATABASE_URL=.*|DATABASE_URL=postgresql://echograph:$postgres_pass@postgres:5432/echograph|g" .env
-            print_success "PASSWORD_URL updated"
+            print_success "DATABASE_URL updated"
         fi
 
-        echo "  Fix: Recreating database and API services to reload environment..."
-        $COMPOSE_CMD up -d --force-recreate postgres
-        sleep 5
-        $COMPOSE_CMD up -d --force-recreate api celery-worker
+        echo "  Fix: Postgres volume initialized with wrong password"
+        echo "  Solution: Removing postgres volume and reinitializing..."
+
+        # Stop all services
+        $COMPOSE_CMD down
+
+        # Remove postgres volume specifically
+        postgres_volume=$($DOCKER_CMD volume ls -q | grep -i postgres || true)
+        if [ -n "$postgres_volume" ]; then
+            print_info "Removing postgres volume: $postgres_volume"
+            $DOCKER_CMD volume rm $postgres_volume 2>/dev/null || true
+        fi
+
+        # Restart services (postgres will initialize fresh with correct password)
+        print_info "Restarting services with fresh database..."
+        $COMPOSE_CMD up -d
         sleep 15
 
     elif echo "$api_logs" | grep -q "Address already in use\|bind.*failed"; then
