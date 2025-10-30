@@ -52,6 +52,12 @@
         "clientRole": false
       },
       {
+        "name": "reviewer",
+        "description": "EchoGraph document reviewer",
+        "composite": false,
+        "clientRole": false
+      },
+      {
         "name": "admin",
         "description": "EchoGraph administrator",
         "composite": false,

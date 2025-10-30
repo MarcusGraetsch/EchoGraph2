@@ -196,6 +196,32 @@ async def get_current_admin_user(
     return current_user
 
 
+async def get_current_reviewer(
+    current_user: KeycloakUser = Depends(get_current_active_user)
+) -> KeycloakUser:
+    """
+    Dependency to ensure the current user has reviewer privileges.
+
+    A user is considered a reviewer if they have the 'reviewer' or 'admin' role.
+
+    Args:
+        current_user: The current active user
+
+    Returns:
+        KeycloakUser: The reviewer user
+
+    Raises:
+        HTTPException: If user doesn't have reviewer or admin role
+    """
+    is_reviewer = "reviewer" in current_user.roles or "echograph-reviewer" in current_user.roles
+    if not is_reviewer and not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Reviewer privileges required"
+        )
+    return current_user
+
+
 async def check_keycloak_health() -> bool:
     """
     Check if Keycloak service is healthy and accessible.

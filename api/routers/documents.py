@@ -19,7 +19,7 @@ from schemas import (
     DocumentDetailResponse,
     Statistics
 )
-from auth import get_current_active_user
+from keycloak_auth import get_current_active_user, KeycloakUser
 from config import settings
 
 router = APIRouter()
@@ -35,8 +35,7 @@ async def upload_document(
     description: Optional[str] = Form(None),
     version: Optional[str] = Form(None),
     db: Session = Depends(get_db),
-    # TODO: Re-enable authentication when login system is implemented
-    # current_user: User = Depends(get_current_active_user)
+    current_user: KeycloakUser = Depends(get_current_active_user)
 ):
     """Upload a new document.
 
@@ -114,8 +113,7 @@ async def list_documents(
     status: Optional[str] = Query(None),
     search: Optional[str] = Query(None),
     db: Session = Depends(get_db),
-    # TODO: Re-enable authentication when login system is implemented
-    # current_user: User = Depends(get_current_active_user)
+    current_user: KeycloakUser = Depends(get_current_active_user)
 ):
     """List documents with pagination and filters.
 
@@ -172,8 +170,7 @@ async def list_documents(
 async def get_document(
     document_id: int,
     db: Session = Depends(get_db),
-    # TODO: Re-enable authentication when login system is implemented
-    # current_user: User = Depends(get_current_active_user)
+    current_user: KeycloakUser = Depends(get_current_active_user)
 ):
     """Get document by ID.
 
