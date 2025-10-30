@@ -166,10 +166,11 @@ echo ""
 print_header "Step 6: Configuring Environment"
 if [ ! -f ".env" ]; then
     # Generate random secrets
+    # Note: Use -hex for passwords that go in URLs (no special chars like +, /, =)
     API_SECRET=$(openssl rand -hex 32)
-    POSTGRES_PASSWORD=$(openssl rand -base64 24)
+    POSTGRES_PASSWORD=$(openssl rand -hex 16)  # 32 chars, URL-safe (no +, /, =)
     MINIO_SECRET=$(openssl rand -hex 32)
-    N8N_PASSWORD=$(openssl rand -base64 16)
+    N8N_PASSWORD=$(openssl rand -base64 16)  # OK to use base64 (not in URL)
 
     # Get server IP
     SERVER_IP=$(curl -s ifconfig.me)
