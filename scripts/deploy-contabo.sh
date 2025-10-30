@@ -621,11 +621,11 @@ if [ "$services_ok" = false ]; then
             print_success "PASSWORD_URL updated"
         fi
 
-        echo "  Fix: Restarting database and API services..."
-        $COMPOSE_CMD restart postgres
+        echo "  Fix: Recreating database and API services to reload environment..."
+        $COMPOSE_CMD up -d --force-recreate postgres
         sleep 5
-        $COMPOSE_CMD restart api
-        sleep 10
+        $COMPOSE_CMD up -d --force-recreate api celery-worker
+        sleep 15
 
     elif echo "$api_logs" | grep -q "Address already in use\|bind.*failed"; then
         print_error "Port conflict detected"
