@@ -149,6 +149,13 @@ if [ ! -f ".env" ]; then
     sed -i "s|MINIO_SECRET_KEY=.*|MINIO_SECRET_KEY=$MINIO_SECRET|g" .env
     sed -i "s|N8N_BASIC_AUTH_PASSWORD=.*|N8N_BASIC_AUTH_PASSWORD=$N8N_PASSWORD|g" .env
 
+    # Add DATABASE_URL if not present
+    if ! grep -q "DATABASE_URL=" .env; then
+        echo "DATABASE_URL=postgresql://echograph:$POSTGRES_PASSWORD@postgres:5432/echograph" >> .env
+    else
+        sed -i "s|DATABASE_URL=.*|DATABASE_URL=postgresql://echograph:$POSTGRES_PASSWORD@postgres:5432/echograph|g" .env
+    fi
+
     # Get server IP
     SERVER_IP=$(curl -s ifconfig.me)
     sed -i "s|NEXT_PUBLIC_API_URL=.*|NEXT_PUBLIC_API_URL=http://$SERVER_IP:8000|g" .env
