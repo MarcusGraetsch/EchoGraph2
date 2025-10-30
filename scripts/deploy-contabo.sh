@@ -511,28 +511,64 @@ existing_volumes=$($DOCKER_CMD volume ls -q | grep -E "echograph|EchoGraph2" || 
 
 if [ -n "$existing_volumes" ]; then
     print_warning "Found existing Docker volumes from previous deployment"
-    echo "  Volumes: $existing_volumes"
     echo ""
-    echo "These must be removed to ensure correct password configuration."
+    echo "  Volumes found:"
+    echo "$existing_volumes" | sed 's/^/    - /'
     echo ""
-    read -p "Remove existing volumes? (Required for fresh deployment) (y/n) " -n 1 -r
+    print_error "⚠ CRITICAL: Postgres volume must be removed to prevent password mismatches"
+    echo ""
+    echo "  Why? Postgres volumes contain encrypted passwords from previous deployments."
+    echo "  If not removed, the API will fail with 'password authentication failed'."
+    echo ""
+    echo "Options:"
+    echo "  1. Remove ALL volumes (recommended for fresh deployment)"
+    echo "  2. Remove ONLY postgres volume (keeps uploaded files)"
+    echo "  3. Keep volumes (NOT recommended - will likely fail)"
+    echo ""
+    read -p "Choose option (1/2/3): " -n 1 -r
     echo
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
-        print_info "Stopping services and removing volumes..."
-        $COMPOSE_CMD down -v 2>/dev/null || true
-        print_success "Volumes cleaned"
-    else
-        print_error "Cannot proceed with existing volumes - password mismatch will occur"
-        echo ""
-        echo "To manually clean volumes:"
-        echo "  $COMPOSE_CMD down -v"
-        echo ""
-        exit 1
-    fi
+    echo ""
+
+    case $REPLY in
+        1)
+            print_info "Removing all volumes for complete fresh start..."
+            $COMPOSE_CMD down -v 2>/dev/null || true
+            print_success "All volumes removed"
+            ;;
+        2)
+            print_info "Removing only postgres volume..."
+            $COMPOSE_CMD down 2>/dev/null || true
+            postgres_volume=$($DOCKER_CMD volume ls -q | grep -i postgres || true)
+            if [ -n "$postgres_volume" ]; then
+                $DOCKER_CMD volume rm $postgres_volume 2>/dev/null || true
+                print_success "Postgres volume removed: $postgres_volume"
+            fi
+            ;;
+        3)
+            print_error "Keeping existing volumes - password mismatch likely to occur"
+            echo ""
+            echo "If deployment fails with 'password authentication failed', run:"
+            echo "  sudo docker-compose down"
+            echo "  sudo docker volume rm echograph2_postgres_data"
+            echo "  sudo docker-compose up -d"
+            echo ""
+            read -p "Continue anyway? (y/n) " -n 1 -r
+            echo
+            if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+                exit 1
+            fi
+            $COMPOSE_CMD down 2>/dev/null || true
+            ;;
+        *)
+            print_error "Invalid option. Defaulting to option 1 (remove all volumes)"
+            $COMPOSE_CMD down -v 2>/dev/null || true
+            print_success "All volumes removed"
+            ;;
+    esac
 else
     # No existing volumes, just stop any running containers
     $COMPOSE_CMD down 2>/dev/null || true
-    print_success "Environment clean"
+    print_success "Environment clean - no existing volumes"
 fi
 
 echo ""
@@ -652,10 +688,16 @@ if [ "$services_ok" = false ]; then
             print_success "DATABASE_URL updated"
         fi
 
-        echo "  Fix: Postgres volume initialized with wrong password"
-        echo "  Solution: Removing postgres volume and reinitializing..."
+        print_warning "Root cause: Postgres volume has old password from previous deployment"
+        echo ""
+        echo "  The postgres data volume was initialized with a different password."
+        echo "  Postgres does not change passwords when restarted - volume must be removed."
+        echo ""
+        print_info "Fix: Removing postgres volume and reinitializing database..."
+        echo ""
 
         # Stop all services
+        print_info "Stopping all services..."
         $COMPOSE_CMD down
 
         # Remove postgres volume specifically
@@ -663,12 +705,21 @@ if [ "$services_ok" = false ]; then
         if [ -n "$postgres_volume" ]; then
             print_info "Removing postgres volume: $postgres_volume"
             $DOCKER_CMD volume rm $postgres_volume 2>/dev/null || true
+            print_success "Postgres volume removed"
+        else
+            print_warning "No postgres volume found to remove"
         fi
 
         # Restart services (postgres will initialize fresh with correct password)
-        print_info "Restarting services with fresh database..."
+        print_info "Starting postgres first to initialize with correct password..."
+        $COMPOSE_CMD up -d postgres
+        sleep 10
+
+        print_info "Starting remaining services..."
         $COMPOSE_CMD up -d
         sleep 15
+
+        print_success "Services restarted with fresh postgres database"
 
     elif echo "$api_logs" | grep -q "Address already in use\|bind.*failed"; then
         print_error "Port conflict detected"
