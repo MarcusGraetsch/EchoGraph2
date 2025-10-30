@@ -135,39 +135,85 @@ cd EchoGraph2
 # Step 6: Configure Environment
 print_header "Step 6: Configuring Environment"
 if [ ! -f ".env" ]; then
-    cp .env.example .env
-
     # Generate random secrets
     API_SECRET=$(openssl rand -hex 32)
     POSTGRES_PASSWORD=$(openssl rand -base64 24)
     MINIO_SECRET=$(openssl rand -hex 32)
     N8N_PASSWORD=$(openssl rand -base64 16)
 
-    # Update .env file
-    sed -i "s|API_SECRET_KEY=.*|API_SECRET_KEY=$API_SECRET|g" .env
-    sed -i "s|POSTGRES_PASSWORD=.*|POSTGRES_PASSWORD=$POSTGRES_PASSWORD|g" .env
-    sed -i "s|MINIO_SECRET_KEY=.*|MINIO_SECRET_KEY=$MINIO_SECRET|g" .env
-    sed -i "s|N8N_BASIC_AUTH_PASSWORD=.*|N8N_BASIC_AUTH_PASSWORD=$N8N_PASSWORD|g" .env
-
-    # Add DATABASE_URL if not present
-    if ! grep -q "DATABASE_URL=" .env; then
-        echo "DATABASE_URL=postgresql://echograph:$POSTGRES_PASSWORD@postgres:5432/echograph" >> .env
-    else
-        sed -i "s|DATABASE_URL=.*|DATABASE_URL=postgresql://echograph:$POSTGRES_PASSWORD@postgres:5432/echograph|g" .env
-    fi
-
     # Get server IP
     SERVER_IP=$(curl -s ifconfig.me)
-    sed -i "s|NEXT_PUBLIC_API_URL=.*|NEXT_PUBLIC_API_URL=http://$SERVER_IP:8000|g" .env
-    sed -i "s|NEXT_PUBLIC_WS_URL=.*|NEXT_PUBLIC_WS_URL=ws://$SERVER_IP:8000|g" .env
-    sed -i "s|API_HOST=.*|API_HOST=http://$SERVER_IP:8000|g" .env
-    sed -i "s|WS_HOST=.*|WS_HOST=ws://$SERVER_IP:8000|g" .env
+
+    # Create comprehensive .env file
+    cat > .env << EOF
+# Database Configuration
+POSTGRES_USER=echograph
+POSTGRES_PASSWORD=$POSTGRES_PASSWORD
+POSTGRES_DB=echograph
+DATABASE_URL=postgresql://echograph:$POSTGRES_PASSWORD@postgres:5432/echograph
+
+# MinIO / S3 Configuration
+MINIO_ENDPOINT=minio:9000
+MINIO_ACCESS_KEY=minioadmin
+MINIO_SECRET_KEY=$MINIO_SECRET
+MINIO_BUCKET=echograph-documents
+MINIO_USE_SSL=false
+
+# API Configuration
+API_HOST=http://$SERVER_IP:8000
+API_PORT=8000
+API_SECRET_KEY=$API_SECRET
+API_ALGORITHM=HS256
+API_ACCESS_TOKEN_EXPIRE_MINUTES=30
+
+# Frontend Configuration
+WS_HOST=ws://$SERVER_IP:8000
+NEXT_PUBLIC_API_URL=http://$SERVER_IP:8000
+NEXT_PUBLIC_WS_URL=ws://$SERVER_IP:8000
+
+# n8n Configuration
+N8N_HOST=$SERVER_IP
+N8N_PORT=5678
+N8N_BASIC_AUTH_ACTIVE=true
+N8N_BASIC_AUTH_USER=admin
+N8N_BASIC_AUTH_PASSWORD=$N8N_PASSWORD
+
+# Redis / Celery Configuration
+REDIS_URL=redis://redis:6379/0
+CELERY_BROKER_URL=redis://redis:6379/0
+CELERY_RESULT_BACKEND=redis://redis:6379/0
+
+# Vector Store (Qdrant)
+QDRANT_HOST=qdrant
+QDRANT_PORT=6333
+
+# AI/ML Configuration
+EMBEDDING_MODEL=sentence-transformers/multi-qa-mpnet-base-dot-v1
+EMBEDDING_DIMENSION=768
+USE_GPU=false
+
+# Document Processing
+MAX_UPLOAD_SIZE_MB=100
+CHUNK_SIZE=512
+CHUNK_OVERLAP=50
+OCR_ENABLED=true
+
+# Monitoring
+LOG_LEVEL=INFO
+ENABLE_METRICS=true
+
+# Security
+ALLOWED_ORIGINS=http://$SERVER_IP:3000,http://$SERVER_IP:8000
+CORS_ALLOW_CREDENTIALS=true
+EOF
 
     print_success "Environment configured with random secure passwords"
     echo ""
     echo "Credentials saved to .env file:"
     echo "  - PostgreSQL Password: $POSTGRES_PASSWORD"
+    echo "  - MinIO Secret Key: $MINIO_SECRET"
     echo "  - n8n Password: $N8N_PASSWORD"
+    echo "  - API Secret Key: $API_SECRET"
     echo "  - Server IP: $SERVER_IP"
     echo ""
     print_warning "Save these credentials securely!"
