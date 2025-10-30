@@ -831,8 +831,36 @@ if [ "$services_ok" = false ]; then
     fi
 fi
 
-# Step 10: Test API Endpoint
-print_header "Step 10: Testing API Endpoints"
+# Step 10: Initialize Keycloak
+print_header "Step 10: Initialize Keycloak Realm"
+print_info "Configuring Keycloak with EchoGraph realm..."
+
+if [ -f "$REPO_DIR/keycloak/init-keycloak.sh" ]; then
+    export KEYCLOAK_SERVER_URL="http://localhost:8080"
+    export KEYCLOAK_ADMIN
+    export KEYCLOAK_ADMIN_PASSWORD
+    export KEYCLOAK_REALM
+    export KEYCLOAK_CLIENT_ID
+    export KEYCLOAK_CLIENT_SECRET
+
+    print_info "Running Keycloak initialization script..."
+    bash "$REPO_DIR/keycloak/init-keycloak.sh"
+
+    if [ $? -eq 0 ]; then
+        print_success "Keycloak realm configured successfully"
+    else
+        print_warning "Keycloak initialization script failed"
+        echo "  You can run it manually later with:"
+        echo "  cd $REPO_DIR && ./keycloak/init-keycloak.sh"
+    fi
+else
+    print_warning "Keycloak initialization script not found"
+    echo "  Skipping automatic realm configuration"
+    echo "  You'll need to configure Keycloak manually"
+fi
+
+# Step 11: Test API Endpoint
+print_header "Step 11: Testing API Endpoints"
 sleep 5
 
 # Test API health endpoint
@@ -864,6 +892,7 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 echo "  Frontend:    http://$SERVER_IP:3000"
 echo "  API Docs:    http://$SERVER_IP:8000/docs"
 echo "  API Health:  http://$SERVER_IP:8000/health"
+echo "  Keycloak:    http://$SERVER_IP:8080"
 echo "  n8n:         http://$SERVER_IP:5678"
 echo "  MinIO:       http://$SERVER_IP:9001"
 echo ""
@@ -880,8 +909,9 @@ echo ""
 print_warning "IMPORTANT Security Notes:"
 echo "  1. Change default passwords in .env file for production"
 echo "  2. Set up firewall in Contabo Control Panel"
-echo "  3. Ports 3000, 8000, 5678, 9000, 9001 must be open"
-echo "  4. See: docs/TROUBLESHOOTING_CONNECTION.md"
+echo "  3. Ports 3000, 8000, 8080, 5678, 9000, 9001 must be open"
+echo "  4. Change Keycloak admin password (default: admin/admin)"
+echo "  5. See: docs/TROUBLESHOOTING_CONNECTION.md"
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "  Useful Commands:"
