@@ -93,6 +93,38 @@ services:
     networks:
       - echograph-network
 
+  # Keycloak Identity and Access Management
+  keycloak:
+    image: quay.io/keycloak/keycloak:23.0
+    container_name: echograph-keycloak
+    command: start-dev
+    ports:
+      - "8080:8080"
+    environment:
+      - KEYCLOAK_ADMIN=${KEYCLOAK_ADMIN:-admin}
+      - KEYCLOAK_ADMIN_PASSWORD=${KEYCLOAK_ADMIN_PASSWORD}
+      - KC_DB=postgres
+      - KC_DB_URL=jdbc:postgresql://postgres:5432/${KEYCLOAK_DB:-keycloak}
+      - KC_DB_USERNAME=${KEYCLOAK_DB_USER:-keycloak}
+      - KC_DB_PASSWORD=${KEYCLOAK_DB_PASSWORD}
+      - KC_HOSTNAME_STRICT=false
+      - KC_HOSTNAME_STRICT_HTTPS=false
+      - KC_HTTP_ENABLED=true
+      - KC_PROXY=edge
+    volumes:
+      - keycloak_data:/opt/keycloak/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health/ready"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    networks:
+      - echograph-network
+
   # FastAPI Backend
   api:
     build:
@@ -114,6 +146,10 @@ services:
       - QDRANT_PORT=${QDRANT_PORT:-6333}
       - API_SECRET_KEY=${API_SECRET_KEY:-change-this-to-a-random-secret-key}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - KEYCLOAK_SERVER_URL=${KEYCLOAK_SERVER_URL}
+      - KEYCLOAK_REALM=${KEYCLOAK_REALM:-echograph}
+      - KEYCLOAK_CLIENT_ID=${KEYCLOAK_CLIENT_ID:-echograph-api}
+      - KEYCLOAK_CLIENT_SECRET=${KEYCLOAK_CLIENT_SECRET}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 10s
@@ -132,6 +168,8 @@ services:
         condition: service_healthy
       qdrant:
         condition: service_started
+      keycloak:
+        condition: service_healthy
     networks:
       - echograph-network
     restart: unless-stopped
@@ -175,6 +213,9 @@ services:
     environment:
       - NEXT_PUBLIC_API_URL=${API_HOST:-http://localhost:8000}
       - NEXT_PUBLIC_WS_URL=${WS_HOST:-ws://localhost:8000}
+      - NEXT_PUBLIC_KEYCLOAK_URL=${KEYCLOAK_PUBLIC_URL}
+      - NEXT_PUBLIC_KEYCLOAK_REALM=${KEYCLOAK_REALM:-echograph}
+      - NEXT_PUBLIC_KEYCLOAK_CLIENT_ID=${KEYCLOAK_FRONTEND_CLIENT_ID:-echograph-frontend}
     depends_on:
       - api
     networks:
@@ -187,6 +228,7 @@ volumes:
   minio_data:
   qdrant_data:
   n8n_data:
+  keycloak_data:
 
 networks:
   echograph-network:
