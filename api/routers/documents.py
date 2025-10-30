@@ -35,7 +35,8 @@ async def upload_document(
     description: Optional[str] = Form(None),
     version: Optional[str] = Form(None),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    # TODO: Re-enable authentication when login system is implemented
+    # current_user: User = Depends(get_current_active_user)
 ):
     """Upload a new document.
 
@@ -48,7 +49,6 @@ async def upload_document(
         description: Document description
         version: Document version
         db: Database session
-        current_user: Current authenticated user
 
     Returns:
         Created document
@@ -114,7 +114,8 @@ async def list_documents(
     status: Optional[str] = Query(None),
     search: Optional[str] = Query(None),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    # TODO: Re-enable authentication when login system is implemented
+    # current_user: User = Depends(get_current_active_user)
 ):
     """List documents with pagination and filters.
 
@@ -126,7 +127,6 @@ async def list_documents(
         status: Filter by status
         search: Search in title, author, description
         db: Database session
-        current_user: Current authenticated user
 
     Returns:
         Paginated list of documents
@@ -172,14 +172,14 @@ async def list_documents(
 async def get_document(
     document_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    # TODO: Re-enable authentication when login system is implemented
+    # current_user: User = Depends(get_current_active_user)
 ):
     """Get document by ID.
 
     Args:
         document_id: Document ID
         db: Database session
-        current_user: Current authenticated user
 
     Returns:
         Document details
