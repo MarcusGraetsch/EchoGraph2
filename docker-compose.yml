@@ -114,6 +114,12 @@ services:
       - QDRANT_PORT=${QDRANT_PORT:-6333}
       - API_SECRET_KEY=${API_SECRET_KEY:-change-this-to-a-random-secret-key}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     volumes:
       - ./api:/app
       - ./data:/app/data
