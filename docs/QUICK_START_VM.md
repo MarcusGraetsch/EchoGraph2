@@ -26,11 +26,13 @@ SSH into your Contabo VM (as non-root user) and run:
 git clone https://github.com/MarcusGraetsch/EchoGraph2.git
 cd EchoGraph2
 
-# Run deployment script
+# Run deployment script (it will auto-detect you're already in the repo)
 ./scripts/deploy-contabo.sh
 ```
 
-**Note:** The script must be run as a regular user with sudo privileges, not as root.
+**Notes:**
+- The script must be run as a regular user with sudo privileges, not as root
+- The script automatically detects if you're already in the repository (no duplicate cloning)
 
 ### If You Get Docker Permission Error
 
@@ -48,10 +50,12 @@ cd ~/EchoGraph2
 That's it! 🎉 The script will:
 - Update your system
 - Install Docker & Docker Compose
-- Clone EchoGraph
+- Detect/use existing repository
+- Check ports and system resources
 - Generate secure passwords
 - Configure services
 - Start everything
+- Verify all services are running
 
 ## Access Your Application
 
@@ -86,11 +90,14 @@ sudo ufw reload
 1. ✅ Updates Ubuntu system packages
 2. ✅ Configures firewall (UFW)
 3. ✅ Installs Docker & Docker Compose
-4. ✅ Clones EchoGraph repository
-5. ✅ Generates secure random passwords
-6. ✅ Creates .env configuration
-7. ✅ Starts all 8 Docker services
-8. ✅ Initializes PostgreSQL database
+4. ✅ Detects existing repository (or clones if needed)
+5. ✅ Checks port availability (all 9 required ports)
+6. ✅ Validates system resources (RAM, CPU, disk)
+7. ✅ Generates secure random passwords
+8. ✅ Creates .env configuration (with option to customize passwords)
+9. ✅ Starts all 8 Docker services
+10. ✅ Verifies all services are healthy (with auto-fix attempts)
+11. ✅ Tests API and frontend endpoints
 
 ## Manual Step-by-Step (If Preferred)
 

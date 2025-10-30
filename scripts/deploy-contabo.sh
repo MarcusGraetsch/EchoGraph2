@@ -119,23 +119,48 @@ else
     print_success "Docker Compose already installed"
 fi
 
-# Step 5: Clone Repository
-print_header "Step 5: Cloning EchoGraph Repository"
-if [ -d "EchoGraph2" ]; then
+# Step 5: Clone Repository (or detect existing)
+print_header "Step 5: Locating EchoGraph Repository"
+
+# Check if we're already inside the EchoGraph2 repository
+if [ -f "docker-compose.yml" ] && [ -d ".git" ] && grep -q "echograph" docker-compose.yml 2>/dev/null; then
+    print_success "Already in EchoGraph2 repository"
+    REPO_DIR=$(pwd)
+
+    # Check if there's a nested clone and warn about it
+    if [ -d "EchoGraph2" ]; then
+        print_warning "Found nested EchoGraph2 directory (from previous run)"
+        echo "  This can be safely deleted: rm -rf EchoGraph2"
+        echo ""
+    fi
+
+# Check if EchoGraph2 exists as subdirectory
+elif [ -d "EchoGraph2" ]; then
     print_warning "EchoGraph2 directory already exists"
-    read -p "Remove and re-clone? (y/n) " -n 1 -r
+    read -p "Use existing directory? (y/n) " -n 1 -r
     echo
     if [[ $REPLY =~ ^[Yy]$ ]]; then
+        cd EchoGraph2
+        REPO_DIR=$(pwd)
+        print_success "Using existing repository"
+    else
         rm -rf EchoGraph2
         git clone https://github.com/MarcusGraetsch/EchoGraph2.git
+        cd EchoGraph2
+        REPO_DIR=$(pwd)
         print_success "Repository cloned"
     fi
+
+# Need to clone
 else
     git clone https://github.com/MarcusGraetsch/EchoGraph2.git
+    cd EchoGraph2
+    REPO_DIR=$(pwd)
     print_success "Repository cloned"
 fi
 
-cd EchoGraph2
+echo "  Working directory: $REPO_DIR"
+echo ""
 
 # Step 6: Configure Environment
 print_header "Step 6: Configuring Environment"
