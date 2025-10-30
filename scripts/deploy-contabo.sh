@@ -171,6 +171,9 @@ if [ ! -f ".env" ]; then
     POSTGRES_PASSWORD=$(openssl rand -hex 16)  # 32 chars, URL-safe (no +, /, =)
     MINIO_SECRET=$(openssl rand -hex 32)
     N8N_PASSWORD=$(openssl rand -base64 16)  # OK to use base64 (not in URL)
+    KEYCLOAK_ADMIN_PASSWORD=$(openssl rand -hex 16)  # Keycloak admin password
+    KEYCLOAK_DB_PASSWORD=$(openssl rand -hex 16)  # Keycloak database password
+    KEYCLOAK_CLIENT_SECRET=$(openssl rand -hex 32)  # API client secret
 
     # Get server IP
     SERVER_IP=$(curl -s ifconfig.me)
@@ -209,6 +212,19 @@ N8N_BASIC_AUTH_ACTIVE=true
 N8N_BASIC_AUTH_USER=admin
 N8N_BASIC_AUTH_PASSWORD=$N8N_PASSWORD
 
+# Keycloak Configuration
+KEYCLOAK_ADMIN=admin
+KEYCLOAK_ADMIN_PASSWORD=$KEYCLOAK_ADMIN_PASSWORD
+KEYCLOAK_DB=keycloak
+KEYCLOAK_DB_USER=keycloak
+KEYCLOAK_DB_PASSWORD=$KEYCLOAK_DB_PASSWORD
+KEYCLOAK_REALM=echograph
+KEYCLOAK_CLIENT_ID=echograph-api
+KEYCLOAK_CLIENT_SECRET=$KEYCLOAK_CLIENT_SECRET
+KEYCLOAK_FRONTEND_CLIENT_ID=echograph-frontend
+KEYCLOAK_SERVER_URL=http://keycloak:8080
+KEYCLOAK_PUBLIC_URL=http://$SERVER_IP:8080
+
 # Redis / Celery Configuration
 REDIS_URL=redis://redis:6379/0
 CELERY_BROKER_URL=redis://redis:6379/0
@@ -242,12 +258,15 @@ EOF
     echo ""
     echo "Generated Credentials:"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "  PostgreSQL Password: $POSTGRES_PASSWORD"
-    echo "  MinIO Secret Key:    $MINIO_SECRET"
-    echo "  n8n Username:        admin"
-    echo "  n8n Password:        $N8N_PASSWORD"
-    echo "  API Secret Key:      $API_SECRET"
-    echo "  Server IP:           $SERVER_IP"
+    echo "  PostgreSQL Password:     $POSTGRES_PASSWORD"
+    echo "  MinIO Secret Key:        $MINIO_SECRET"
+    echo "  n8n Username:            admin"
+    echo "  n8n Password:            $N8N_PASSWORD"
+    echo "  Keycloak Admin Username: admin"
+    echo "  Keycloak Admin Password: $KEYCLOAK_ADMIN_PASSWORD"
+    echo "  Keycloak DB Password:    $KEYCLOAK_DB_PASSWORD"
+    echo "  API Secret Key:          $API_SECRET"
+    echo "  Server IP:               $SERVER_IP"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo ""
     print_warning "IMPORTANT: Save these credentials securely!"
@@ -639,6 +658,7 @@ check_service "redis" || services_ok=false
 check_service "minio" || services_ok=false
 check_service "qdrant" || services_ok=false
 check_service "n8n" || services_ok=false
+check_service "keycloak" || services_ok=false
 
 echo ""
 echo "Checking application services:"
@@ -811,8 +831,36 @@ if [ "$services_ok" = false ]; then
     fi
 fi
 
-# Step 10: Test API Endpoint
-print_header "Step 10: Testing API Endpoints"
+# Step 10: Initialize Keycloak
+print_header "Step 10: Initialize Keycloak Realm"
+print_info "Configuring Keycloak with EchoGraph realm..."
+
+if [ -f "$REPO_DIR/keycloak/init-keycloak.sh" ]; then
+    export KEYCLOAK_SERVER_URL="http://localhost:8080"
+    export KEYCLOAK_ADMIN
+    export KEYCLOAK_ADMIN_PASSWORD
+    export KEYCLOAK_REALM
+    export KEYCLOAK_CLIENT_ID
+    export KEYCLOAK_CLIENT_SECRET
+
+    print_info "Running Keycloak initialization script..."
+    bash "$REPO_DIR/keycloak/init-keycloak.sh"
+
+    if [ $? -eq 0 ]; then
+        print_success "Keycloak realm configured successfully"
+    else
+        print_warning "Keycloak initialization script failed"
+        echo "  You can run it manually later with:"
+        echo "  cd $REPO_DIR && ./keycloak/init-keycloak.sh"
+    fi
+else
+    print_warning "Keycloak initialization script not found"
+    echo "  Skipping automatic realm configuration"
+    echo "  You'll need to configure Keycloak manually"
+fi
+
+# Step 11: Test API Endpoint
+print_header "Step 11: Testing API Endpoints"
 sleep 5
 
 # Test API health endpoint
@@ -844,6 +892,7 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 echo "  Frontend:    http://$SERVER_IP:3000"
 echo "  API Docs:    http://$SERVER_IP:8000/docs"
 echo "  API Health:  http://$SERVER_IP:8000/health"
+echo "  Keycloak:    http://$SERVER_IP:8080"
 echo "  n8n:         http://$SERVER_IP:5678"
 echo "  MinIO:       http://$SERVER_IP:9001"
 echo ""
@@ -860,8 +909,9 @@ echo ""
 print_warning "IMPORTANT Security Notes:"
 echo "  1. Change default passwords in .env file for production"
 echo "  2. Set up firewall in Contabo Control Panel"
-echo "  3. Ports 3000, 8000, 5678, 9000, 9001 must be open"
-echo "  4. See: docs/TROUBLESHOOTING_CONNECTION.md"
+echo "  3. Ports 3000, 8000, 8080, 5678, 9000, 9001 must be open"
+echo "  4. Change Keycloak admin password (default: admin/admin)"
+echo "  5. See: docs/TROUBLESHOOTING_CONNECTION.md"
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "  Useful Commands:"

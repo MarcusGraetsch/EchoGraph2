@@ -7,7 +7,7 @@ from loguru import logger
 from database import get_db
 from models import DocumentChunk, Document, User
 from schemas import SearchRequest, SearchResponse, SearchResult
-from auth import get_current_active_user
+from keycloak_auth import get_current_active_user, KeycloakUser
 
 router = APIRouter()
 
@@ -16,7 +16,7 @@ router = APIRouter()
 async def semantic_search(
     search_request: SearchRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: KeycloakUser = Depends(get_current_active_user)
 ):
     """Perform semantic search across documents.
 

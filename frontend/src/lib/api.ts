@@ -9,9 +9,18 @@ export const api = axios.create({
   },
 })
 
+// Store for Keycloak token
+let keycloakToken: string | null = null
+
+// Function to set Keycloak token (called by KeycloakProvider)
+export const setKeycloakToken = (token: string | null) => {
+  keycloakToken = token
+}
+
 // Add auth token to requests
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token')
+  // Use Keycloak token if available, otherwise fall back to localStorage
+  const token = keycloakToken || localStorage.getItem('token')
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
   }
@@ -23,8 +32,10 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
+      // Clear old localStorage token if present
       localStorage.removeItem('token')
-      window.location.href = '/login'
+      // Token expired or invalid - Keycloak will handle re-authentication
+      console.error('Authentication failed - token may be expired')
     }
     return Promise.reject(error)
   }

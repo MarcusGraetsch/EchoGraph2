@@ -17,7 +17,7 @@ from schemas import (
     ComparisonResponse,
     ComparisonResult
 )
-from auth import get_current_active_user, get_current_reviewer
+from keycloak_auth import get_current_active_user, get_current_reviewer, KeycloakUser
 
 router = APIRouter()
 
@@ -26,7 +26,7 @@ router = APIRouter()
 async def create_relationship(
     relationship_data: RelationshipCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: KeycloakUser = Depends(get_current_active_user)
 ):
     """Create a new document relationship.
 
@@ -74,7 +74,7 @@ async def create_relationship(
 async def get_relationship(
     relationship_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: KeycloakUser = Depends(get_current_active_user)
 ):
     """Get relationship by ID.
 
@@ -107,7 +107,7 @@ async def get_document_relationships(
     document_id: int,
     validation_status: Optional[str] = Query(None),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: KeycloakUser = Depends(get_current_active_user)
 ):
     """Get all relationships for a document.
 
@@ -217,7 +217,7 @@ async def get_pending_relationships(
 async def compare_documents(
     comparison_request: ComparisonRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: KeycloakUser = Depends(get_current_active_user)
 ):
     """Compare multiple documents.
 
@@ -280,7 +280,7 @@ async def compare_documents(
 async def delete_relationship(
     relationship_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: KeycloakUser = Depends(get_current_active_user)
 ):
     """Delete a relationship.
 
