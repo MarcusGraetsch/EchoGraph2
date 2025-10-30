@@ -9,6 +9,7 @@ set -e  # Exit on error
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Functions
@@ -22,6 +23,10 @@ print_error() {
 
 print_warning() {
     echo -e "${YELLOW}⚠ $1${NC}"
+}
+
+print_info() {
+    echo -e "${BLUE}ℹ $1${NC}"
 }
 
 print_header() {
@@ -209,17 +214,90 @@ EOF
 
     print_success "Environment configured with random secure passwords"
     echo ""
-    echo "Credentials saved to .env file:"
-    echo "  - PostgreSQL Password: $POSTGRES_PASSWORD"
-    echo "  - MinIO Secret Key: $MINIO_SECRET"
-    echo "  - n8n Password: $N8N_PASSWORD"
-    echo "  - API Secret Key: $API_SECRET"
-    echo "  - Server IP: $SERVER_IP"
+    echo "Generated Credentials:"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "  PostgreSQL Password: $POSTGRES_PASSWORD"
+    echo "  MinIO Secret Key:    $MINIO_SECRET"
+    echo "  n8n Username:        admin"
+    echo "  n8n Password:        $N8N_PASSWORD"
+    echo "  API Secret Key:      $API_SECRET"
+    echo "  Server IP:           $SERVER_IP"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo ""
-    print_warning "Save these credentials securely!"
+    print_warning "IMPORTANT: Save these credentials securely!"
     echo ""
+
+    # Ask if user wants to change passwords now
+    print_header "Password Management"
+    echo "You have two options for password security:"
+    echo ""
+    echo "  1. Change passwords NOW (recommended for production)"
+    echo "  2. Change passwords LATER (faster setup, less secure)"
+    echo ""
+    read -p "Do you want to change passwords now? (y/n) " -n 1 -r
+    echo
+    echo ""
+
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        print_info "Changing passwords interactively..."
+        echo ""
+
+        # PostgreSQL Password
+        read -sp "Enter new PostgreSQL password (or press Enter to keep generated): " NEW_POSTGRES_PASSWORD
+        echo
+        if [ -n "$NEW_POSTGRES_PASSWORD" ]; then
+            POSTGRES_PASSWORD=$NEW_POSTGRES_PASSWORD
+            sed -i "s|POSTGRES_PASSWORD=.*|POSTGRES_PASSWORD=$POSTGRES_PASSWORD|g" .env
+            sed -i "s|DATABASE_URL=.*|DATABASE_URL=postgresql://echograph:$POSTGRES_PASSWORD@postgres:5432/echograph|g" .env
+            print_success "PostgreSQL password updated"
+        else
+            print_info "Keeping generated PostgreSQL password"
+        fi
+        echo ""
+
+        # n8n Password
+        read -sp "Enter new n8n password (or press Enter to keep generated): " NEW_N8N_PASSWORD
+        echo
+        if [ -n "$NEW_N8N_PASSWORD" ]; then
+            N8N_PASSWORD=$NEW_N8N_PASSWORD
+            sed -i "s|N8N_BASIC_AUTH_PASSWORD=.*|N8N_BASIC_AUTH_PASSWORD=$N8N_PASSWORD|g" .env
+            print_success "n8n password updated"
+        else
+            print_info "Keeping generated n8n password"
+        fi
+        echo ""
+
+        # MinIO Secret
+        read -sp "Enter new MinIO secret key (or press Enter to keep generated): " NEW_MINIO_SECRET
+        echo
+        if [ -n "$NEW_MINIO_SECRET" ]; then
+            MINIO_SECRET=$NEW_MINIO_SECRET
+            sed -i "s|MINIO_SECRET_KEY=.*|MINIO_SECRET_KEY=$MINIO_SECRET|g" .env
+            print_success "MinIO secret key updated"
+        else
+            print_info "Keeping generated MinIO secret"
+        fi
+        echo ""
+
+        print_success "Password configuration complete!"
+    else
+        print_warning "Passwords can be changed later by editing the .env file"
+        echo ""
+        echo "To change passwords later:"
+        echo "  1. Edit file: nano ~/EchoGraph2/.env"
+        echo "  2. Update these variables:"
+        echo "     - POSTGRES_PASSWORD"
+        echo "     - DATABASE_URL (update password in connection string)"
+        echo "     - N8N_BASIC_AUTH_PASSWORD"
+        echo "     - MINIO_SECRET_KEY"
+        echo "     - API_SECRET_KEY"
+        echo "  3. Restart services: cd ~/EchoGraph2 && sudo docker-compose restart"
+        echo ""
+        read -p "Press Enter to continue with deployment..."
+    fi
 else
     print_warning ".env file already exists, skipping"
+    SERVER_IP=$(grep "NEXT_PUBLIC_API_URL" .env | cut -d'/' -f3 | cut -d':' -f1 || curl -s ifconfig.me)
 fi
 
 # Step 7: Create Data Directories
@@ -242,9 +320,13 @@ else
     COMPOSE_CMD="sudo docker-compose"
 fi
 
-# Try to start services
+# Stop any existing services
+$COMPOSE_CMD down 2>/dev/null || true
+
+# Start services
+print_info "Starting Docker containers..."
 if $COMPOSE_CMD up -d 2>&1 | grep -v "attribute.*version.*obsolete"; then
-    print_success "Services started successfully"
+    print_success "Docker Compose started"
 else
     print_error "Failed to start services"
     echo ""
@@ -256,51 +338,197 @@ else
     exit 1
 fi
 
-# Step 9: Wait for Services
-print_header "Step 9: Waiting for Services to Start"
-echo "Waiting 30 seconds for services to initialize..."
-sleep 30
+# Step 9: Health Check Services
+print_header "Step 9: Health Check - Verifying All Services"
+echo "Waiting for services to initialize..."
+sleep 10
 
-# Check service status
-$COMPOSE_CMD ps
+# Function to check service health
+check_service() {
+    local service=$1
+    local max_attempts=12
+    local wait_time=5
+    local attempt=1
 
-# Step 10: Initialize Database
-print_header "Step 10: Initializing Database"
-if $COMPOSE_CMD exec -T api python -c "from database import init_db; init_db()" 2>/dev/null; then
-    print_success "Database initialized"
+    print_info "Checking $service..."
+
+    while [ $attempt -le $max_attempts ]; do
+        local status=$($COMPOSE_CMD ps --format json $service 2>/dev/null | grep -o '"Health":"[^"]*"' | cut -d'"' -f4 || echo "")
+        local state=$($COMPOSE_CMD ps --format json $service 2>/dev/null | grep -o '"State":"[^"]*"' | cut -d'"' -f4 || echo "")
+
+        if [ "$state" = "running" ]; then
+            if [ -z "$status" ] || [ "$status" = "healthy" ] || [ "$status" = "" ]; then
+                print_success "$service is running"
+                return 0
+            fi
+        fi
+
+        if [ $attempt -eq $max_attempts ]; then
+            print_error "$service failed to start properly"
+            return 1
+        fi
+
+        echo "  Attempt $attempt/$max_attempts - waiting ${wait_time}s..."
+        sleep $wait_time
+        ((attempt++))
+    done
+
+    return 1
+}
+
+# Check each service
+services_ok=true
+
+echo ""
+echo "Checking core services:"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+check_service "postgres" || services_ok=false
+check_service "redis" || services_ok=false
+check_service "minio" || services_ok=false
+check_service "qdrant" || services_ok=false
+check_service "n8n" || services_ok=false
+
+echo ""
+echo "Checking application services:"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+check_service "api" || services_ok=false
+check_service "frontend" || services_ok=false
+check_service "celery-worker" || services_ok=false
+
+echo ""
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+# If services failed, try to fix them
+if [ "$services_ok" = false ]; then
+    print_warning "Some services failed health checks. Attempting to fix..."
+    echo ""
+
+    # Show logs for failed services
+    print_info "Checking logs for errors..."
+    echo ""
+
+    # Check API logs for common issues
+    api_logs=$($COMPOSE_CMD logs --tail=20 api 2>&1)
+    if echo "$api_logs" | grep -q "password authentication failed"; then
+        print_error "Database authentication error detected"
+        echo "  Issue: API cannot connect to PostgreSQL with current password"
+        echo "  Fix: Restarting database and API services..."
+        $COMPOSE_CMD restart postgres
+        sleep 5
+        $COMPOSE_CMD restart api
+        sleep 10
+    elif echo "$api_logs" | grep -q "Connection refused"; then
+        print_error "Service connection error detected"
+        echo "  Issue: API cannot reach dependent services"
+        echo "  Fix: Restarting all services in correct order..."
+        $COMPOSE_CMD restart postgres redis minio qdrant
+        sleep 10
+        $COMPOSE_CMD restart api celery-worker frontend
+        sleep 10
+    fi
+
+    # Re-check services after fix attempt
+    print_info "Re-checking services after fix attempt..."
+    sleep 5
+
+    services_ok=true
+    check_service "api" || services_ok=false
+    check_service "frontend" || services_ok=false
+
+    if [ "$services_ok" = false ]; then
+        print_error "Services still failing after fix attempt"
+        echo ""
+        echo "Manual intervention required. Check logs with:"
+        echo "  ${COMPOSE_CMD} logs api"
+        echo "  ${COMPOSE_CMD} logs frontend"
+        echo "  ${COMPOSE_CMD} logs postgres"
+        echo ""
+        echo "Common issues:"
+        echo "  1. Database password mismatch - check .env file"
+        echo "  2. Port conflicts - check if ports 3000, 8000, 5432 are available"
+        echo "  3. Resource limits - ensure enough RAM/CPU available"
+        echo ""
+        read -p "Continue anyway? (y/n) " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            exit 1
+        fi
+    else
+        print_success "All services recovered successfully!"
+    fi
+fi
+
+# Step 10: Test API Endpoint
+print_header "Step 10: Testing API Endpoints"
+sleep 5
+
+# Test API health endpoint
+print_info "Testing API health endpoint..."
+api_response=$(curl -s http://localhost:8000/health || echo "failed")
+if echo "$api_response" | grep -q "healthy"; then
+    print_success "API is responding correctly"
 else
-    print_warning "Database initialization may have failed. Check logs with: ${COMPOSE_CMD} logs api"
+    print_warning "API health check returned unexpected response"
+    echo "  Response: $api_response"
+fi
+
+# Test frontend
+print_info "Testing frontend..."
+frontend_response=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000 || echo "failed")
+if [ "$frontend_response" = "200" ] || [ "$frontend_response" = "304" ]; then
+    print_success "Frontend is responding correctly"
+else
+    print_warning "Frontend returned status code: $frontend_response"
 fi
 
 # Final Summary
 print_header "Deployment Complete!"
-SERVER_IP=$(curl -s ifconfig.me)
 echo "EchoGraph is now running!"
 echo ""
-echo "Access your application:"
-echo "  • Frontend:    http://$SERVER_IP:3000"
-echo "  • API Docs:    http://$SERVER_IP:8000/docs"
-echo "  • n8n:         http://$SERVER_IP:5678"
-echo "  • MinIO:       http://$SERVER_IP:9001"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "  Access URLs:"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "  Frontend:    http://$SERVER_IP:3000"
+echo "  API Docs:    http://$SERVER_IP:8000/docs"
+echo "  API Health:  http://$SERVER_IP:8000/health"
+echo "  n8n:         http://$SERVER_IP:5678"
+echo "  MinIO:       http://$SERVER_IP:9001"
 echo ""
-print_warning "IMPORTANT: Can't access the application?"
-echo "1. Check Contabo Control Panel firewall settings"
-echo "2. Ensure ports 3000, 8000, 5678, 9000, 9001 are open"
-echo "3. See: docs/TROUBLESHOOTING_CONNECTION.md"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "  Service Status:"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+$COMPOSE_CMD ps
 echo ""
-echo "Credentials are saved in: $(pwd)/.env"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "  Credentials Location:"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "  File: $(pwd)/.env"
 echo ""
-echo "Useful commands:"
-echo "  • View logs:       ${COMPOSE_CMD} logs -f"
-echo "  • Stop services:   ${COMPOSE_CMD} down"
-echo "  • Start services:  ${COMPOSE_CMD} up -d"
-echo "  • Restart:         ${COMPOSE_CMD} restart"
+print_warning "IMPORTANT Security Notes:"
+echo "  1. Change default passwords in .env file for production"
+echo "  2. Set up firewall in Contabo Control Panel"
+echo "  3. Ports 3000, 8000, 5678, 9000, 9001 must be open"
+echo "  4. See: docs/TROUBLESHOOTING_CONNECTION.md"
 echo ""
-echo "Next steps:"
-echo "  1. Review and update .env file if needed"
-echo "  2. Set up Nginx reverse proxy (see docs/deployment-contabo.md)"
-echo "  3. Install SSL certificate with Let's Encrypt"
-echo "  4. Configure backups"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "  Useful Commands:"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "  View logs:       ${COMPOSE_CMD} logs -f [service]"
+echo "  Stop services:   ${COMPOSE_CMD} down"
+echo "  Start services:  ${COMPOSE_CMD} up -d"
+echo "  Restart service: ${COMPOSE_CMD} restart [service]"
+echo "  Service status:  ${COMPOSE_CMD} ps"
+echo ""
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "  Next Steps:"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "  1. Test upload: Visit http://$SERVER_IP:3000/dashboard"
+echo "  2. Review API:  Visit http://$SERVER_IP:8000/docs"
+echo "  3. Set up Nginx reverse proxy (see docs/deployment-contabo.md)"
+echo "  4. Install SSL certificate with Let's Encrypt"
+echo "  5. Configure backups"
 echo ""
 if [ "$COMPOSE_CMD" = "sudo docker-compose" ]; then
     print_warning "Note: Log out and back in to use Docker without sudo"
@@ -308,3 +536,4 @@ if [ "$COMPOSE_CMD" = "sudo docker-compose" ]; then
     echo ""
 fi
 print_success "Setup complete! Visit http://$SERVER_IP:3000 to get started."
+echo ""
