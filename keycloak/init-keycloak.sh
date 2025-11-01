@@ -58,26 +58,43 @@ echo "  Client ID: $CLIENT_ID"
 ##############################################################################
 
 print_info "Waiting for Keycloak to be ready..."
-MAX_RETRIES=60
+print_info "This may take 2-3 minutes for Keycloak to fully start..."
+
+MAX_RETRIES=90  # 3 minutes with 2 second intervals
 RETRY_COUNT=0
+KEYCLOAK_READY=false
 
 while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-    if curl -sf "$KEYCLOAK_URL/health/ready" > /dev/null 2>&1; then
-        print_success "Keycloak is ready!"
+    # Try to access the master realm endpoint (more reliable than /health/ready)
+    HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$KEYCLOAK_URL/realms/master" 2>/dev/null || echo "000")
+
+    # 200, 302, 404, or even 403 means Keycloak is responding
+    if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "302" ] || [ "$HTTP_CODE" = "404" ] || [ "$HTTP_CODE" = "403" ]; then
+        KEYCLOAK_READY=true
         break
     fi
 
     RETRY_COUNT=$((RETRY_COUNT + 1))
     if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
         print_error "Keycloak did not become ready in time"
+        print_info "Last HTTP code: $HTTP_CODE"
+        print_info "Try checking: docker compose logs keycloak"
         exit 1
     fi
 
-    echo -n "."
+    # Print progress every 10 retries
+    if [ $((RETRY_COUNT % 10)) -eq 0 ]; then
+        echo -n " [${RETRY_COUNT}s] "
+    else
+        echo -n "."
+    fi
     sleep 2
 done
 
-echo ""
+if [ "$KEYCLOAK_READY" = true ]; then
+    echo ""
+    print_success "Keycloak is ready!"
+fi
 
 ##############################################################################
 # Step 2: Get admin access token
