@@ -115,6 +115,10 @@ services:
       - KC_HOSTNAME_STRICT_HTTPS=false
       - KC_HTTP_ENABLED=true
       - KC_PROXY=edge
+      - KC_HEALTH_ENABLED=true
+      - KC_HOSTNAME_STRICT_BACKCHANNEL=false
+      - KC_HOSTNAME=${KEYCLOAK_HOSTNAME:-localhost:8080}
+      - KC_HOSTNAME_ADMIN=${KEYCLOAK_HOSTNAME_ADMIN:-localhost:8080}
     volumes:
       - keycloak_data:/opt/keycloak/data
     depends_on:
