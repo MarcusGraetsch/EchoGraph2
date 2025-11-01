@@ -608,6 +608,23 @@ else
     exit 1
 fi
 
+# Step 8.5: Setup Keycloak Database
+print_header "Step 8.5: Setting up Keycloak Database"
+print_info "Ensuring Keycloak database exists..."
+
+if [ -f "$REPO_DIR/scripts/setup-keycloak-database.sh" ]; then
+    if bash "$REPO_DIR/scripts/setup-keycloak-database.sh"; then
+        print_success "Keycloak database setup completed"
+    else
+        print_warning "Keycloak database setup failed - Keycloak may not start properly"
+        echo "  You can run it manually later with:"
+        echo "  cd $REPO_DIR && ./scripts/setup-keycloak-database.sh"
+    fi
+else
+    print_warning "Keycloak database setup script not found"
+    echo "  Keycloak may fail to start if database doesn't exist"
+fi
+
 # Step 9: Health Check Services
 print_header "Step 9: Health Check - Verifying All Services"
 echo "Waiting for services to initialize..."
