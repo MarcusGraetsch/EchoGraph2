@@ -117,8 +117,8 @@ services:
       - KC_PROXY=edge
       - KC_HEALTH_ENABLED=true
       - KC_HOSTNAME_STRICT_BACKCHANNEL=false
-      - KC_HOSTNAME=${KEYCLOAK_HOSTNAME:-localhost:8080}
-      - KC_HOSTNAME_ADMIN=${KEYCLOAK_HOSTNAME_ADMIN:-localhost:8080}
+      - KC_HOSTNAME_URL=${KEYCLOAK_HOSTNAME_URL:-http://localhost:8080}
+      - KC_HOSTNAME_ADMIN_URL=${KEYCLOAK_HOSTNAME_ADMIN_URL:-http://localhost:8080}
     volumes:
       - keycloak_data:/opt/keycloak/data
     depends_on:
