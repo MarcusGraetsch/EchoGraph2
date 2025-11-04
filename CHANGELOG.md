@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **CRITICAL**: Fixed ModuleNotFoundError for `ingestion` and `processing` modules in Docker containers
+  - Updated `docker-compose.yml` to change build context from `./api` to `.` (root directory)
+  - Modified `api/Dockerfile` to copy `ingestion/` and `processing/` modules into container
+  - Added `PYTHONPATH=/app` environment variable to both `api` and `celery-worker` services
+  - Updated volume mounts to include `/app/ingestion` and `/app/processing` for development hot-reload
+  - Changed Celery worker command from `celery -A tasks` to `celery -A api.tasks`
+  - Changed uvicorn command from `main:app` to `api.main:app`
+  - This fix resolves deployment failures where API and Celery worker services fail to start
+  - Issue: API service was continuously crashing with import errors preventing deployment success
+
 ### Added
 - Initial project setup with mono-repo structure
 - FastAPI backend with RESTful API
