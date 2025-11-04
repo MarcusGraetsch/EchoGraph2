@@ -1,5 +1,186 @@
 # EchoGraph2 - Comprehensive AI Development Prompt
 
+> **Vollständiger Kontext für AI-Assistenten zur Weiterentwicklung des EchoGraph2 Projekts**
+
+---
+
+## 📋 Metadata
+
+| Property | Value |
+|----------|-------|
+| **Document Version** | 1.1.0 |
+| **Created** | 2025-11-04 |
+| **Last Updated** | 2025-11-04 |
+| **Analysis Method** | Automated repository exploration via Claude Code |
+| **Repository** | https://github.com/MarcusGraetsch/EchoGraph2 |
+| **Branch** | `claude/github-repo-setup-011CUnZNkLAYPHSoRcpsLfa6` |
+| **Latest Commit** | `607531f` - docs: add comprehensive AI development prompt |
+| **Project Status** | Alpha v0.1.0 - Active Development |
+| **Total Lines** | ~1600 lines |
+
+---
+
+## 🎯 How to Use This Prompt
+
+### For AI Assistants
+
+**Dieses Dokument ist ein vollständiger Kontext-Dump des EchoGraph2 Projekts.** Es wurde durch automatisierte Repository-Analyse erstellt und enthält alle notwendigen Informationen, um ohne weitere Recherche produktiv am Projekt zu arbeiten.
+
+#### Quick Start für KIs:
+
+1. **Erste Orientierung** (5 Min)
+   - Lies "Projektübersicht" für High-Level Understanding
+   - Überblicke "Systemarchitektur" für Component-Interaktionen
+   - Checke "Aktueller Implementierungsstatus" für ✅/🚧/❌
+
+2. **Vor dem Coding** (10 Min)
+   - Lies relevante Sections basierend auf deiner Task:
+     - Backend → "Datenmodelle", "API-Struktur", "Celery TODOs"
+     - Frontend → "Frontend-Architektur", "Frontend UI Components TODOs"
+     - Infrastructure → "DevOps & Infrastructure", "Deployment Workflow"
+   - Prüfe "⚠️ Identifizierte Schwachstellen" für deine Domain
+   - Lies "Best Practices für AI-Assistenz" für Code Style
+
+3. **Während dem Coding**
+   - Nutze "Nächste Prioritäre TODOs" als Referenz
+   - Befolge "Code Style Guidelines" (Python/TypeScript)
+   - Implementiere mit "Testing Strategy" im Kopf
+
+4. **Debugging**
+   - Nutze "Debugging Tips" Section
+   - Referenziere "Projektstruktur" für File Locations
+
+#### Wichtige Hinweise:
+
+- ⚠️ **Security First**: Alle Default-Passwörter MÜSSEN in Production geändert werden
+- 🔴 **Kritische TODOs**: Celery Tasks, MinIO Integration, Semantic Search
+- 📚 **Weitere Docs**: Siehe `/docs` Directory für detaillierte Guides
+- 🐛 **Known Issues**: Keycloak HTTP-Konfiguration wurde in letzten Commits bearbeitet (siehe commits a9f5496, 0849faa)
+
+#### Navigation Shortcuts:
+
+```bash
+# Für spezifische Themen, suche nach:
+"## Systemarchitektur"        # Architecture Diagramme
+"## Datenmodelle"             # Database Schema
+"## API-Struktur"             # Endpoint Reference
+"### ⚠️ Identifizierte Schwachstellen"  # Security/Performance Issues
+"## Nächste Prioritäre TODOs" # Implementation Templates
+"## Best Practices"           # Code Style Guidelines
+```
+
+---
+
+## 📖 Table of Contents
+
+1. [Projektübersicht](#projektübersicht)
+2. [Technologie-Stack](#technologie-stack)
+3. [Systemarchitektur](#systemarchitektur)
+4. [Datenmodelle](#datenmodelle)
+5. [API-Struktur](#api-struktur)
+6. [Projektstruktur](#projektstruktur)
+7. [Aktueller Implementierungsstatus](#aktueller-implementierungsstatus)
+8. [Identifizierte Schwachstellen](#️-identifizierte-schwachstellen)
+9. [Nächste Prioritäre TODOs](#nächste-prioritäre-todos)
+10. [Entwicklungs-Workflow](#entwicklungs-workflow)
+11. [Best Practices für AI-Assistenz](#best-practices-für-ai-assistenz)
+12. [Zusammenfassung für AI-Entwicklung](#zusammenfassung-für-ai-entwicklung)
+
+---
+
+## 🔍 Analysemethodik
+
+Dieser Prompt wurde erstellt durch:
+
+1. **Repository Exploration**
+   - Task-Agent mit `subagent_type=Explore` (thoroughness: very thorough)
+   - Analysierte 250+ Dateien über alle Directories
+   - Extrahierte Struktur, Dependencies, Konfigurationen
+
+2. **Dokumentation Review**
+   - README.md, PROJECT_STATUS.md, IMPLEMENTATION_SUMMARY.md
+   - Alle `/docs` Markdown-Dateien
+   - docker-compose.yml, package.json, requirements.txt
+
+3. **Code Analysis**
+   - Grep-Suche nach TODO/FIXME/HACK/BUG Kommentaren
+   - Identifikation unvollständiger Implementierungen
+   - Security Pattern Analysis
+
+4. **Git History Review**
+   - Letzte 10 Commits analysiert
+   - Keycloak-Konfiguration Änderungen identifiziert
+   - Branch Status dokumentiert
+
+---
+
+## ⚡ Quick Reference
+
+### Essential Services
+
+| Service | URL | Default Credentials | Purpose |
+|---------|-----|---------------------|---------|
+| **Frontend** | http://localhost:3000 | - | Next.js UI |
+| **API** | http://localhost:8000 | - | FastAPI Backend |
+| **API Docs** | http://localhost:8000/docs | - | Swagger UI |
+| **PostgreSQL** | localhost:5432 | postgres/postgres | Primary DB |
+| **MinIO Console** | http://localhost:9001 | minioadmin/minioadmin | Object Storage |
+| **Qdrant** | http://localhost:6333 | - | Vector DB |
+| **Keycloak** | http://localhost:8080 | admin/admin | IAM |
+| **n8n** | http://localhost:5678 | admin/admin | Workflows |
+| **Redis** | localhost:6379 | - | Queue/Cache |
+
+### Critical Files
+
+| File | Purpose |
+|------|---------|
+| `api/tasks.py:56,91` | 🔴 TODO: Celery task implementation |
+| `api/routers/documents.py:97,266` | 🔴 TODO: MinIO integration |
+| `api/routers/search.py:31,54` | 🔴 TODO: Semantic search |
+| `.env.example` | ⚠️ Change ALL passwords for production |
+| `docker-compose.yml` | Service orchestration |
+| `PROJECT_STATUS.md` | Current implementation status |
+
+### Key Commands
+
+```bash
+# Start all services
+docker-compose up -d
+
+# View logs
+docker-compose logs -f api celery-worker
+
+# Run backend locally
+cd api && uvicorn main:app --reload
+
+# Run frontend locally
+cd frontend && npm run dev
+
+# Run tests
+pytest api/tests/
+cd frontend && npm test
+
+# Check git status
+git status
+git log --oneline -5
+```
+
+---
+
+## 🚀 Recent Changes (Last 10 Commits)
+
+```
+607531f - docs: add comprehensive AI development prompt (HEAD)
+f78e346 - Merge pull request #43 (Keycloak debug)
+a9f5496 - feat: add comprehensive Keycloak HTTP configuration script
+cde741e - Merge pull request #42 (Keycloak debug)
+0849faa - feat: add script to disable Keycloak SSL requirement
+```
+
+**Notable**: Mehrere Commits zum Keycloak HTTP-Setup (keine HTTPS-Konfiguration) → Security Issue für Production!
+
+---
+
 ## Projektübersicht
 
 **EchoGraph2** ist eine hochmoderne Document Compliance & Comparison Platform, die mittels AI-gestützter semantischer Analyse regulatorische Dokumente und Unternehmensrichtlinien verwaltet, analysiert und vergleicht.
@@ -1583,4 +1764,107 @@ curl http://localhost:6333/collections/document_chunks/points?limit=10
 
 ---
 
+## 📝 Changelog
+
+### Version 1.1.0 (2025-11-04)
+
+**Added:**
+- 📋 Metadata section with document versioning
+- 🎯 "How to Use This Prompt" guide for AI assistants
+- 📖 Table of Contents for better navigation
+- 🔍 Analysemethodik section explaining how this prompt was created
+- ⚡ Quick Reference with services, critical files, and commands
+- 🚀 Recent Changes section with git commit history
+- 🐛 Note about Keycloak HTTP configuration commits
+
+**Context:**
+- Erstellt durch vollständige Repository-Analyse via Claude Code
+- Task-Agent mit Explore-Modus (very thorough)
+- 250+ Dateien analysiert
+- Alle Dokumentationen reviewt
+- TODO/FIXME/BUG Kommentare extrahiert
+- Git History der letzten 10 Commits analysiert
+
+### Version 1.0.0 (2025-11-04)
+
+**Initial Release:**
+- Vollständige Projektübersicht
+- Technologie-Stack Dokumentation
+- Systemarchitektur mit Diagrammen
+- Datenmodelle und API-Struktur
+- Implementierungsstatus (✅/🚧/❌)
+- Identifizierte Schwachstellen (Security, Performance, Reliability)
+- Priorisierte TODOs mit Code-Templates
+- Entwicklungs-Workflow und Best Practices
+- Testing Strategy und Debugging Tips
+
+---
+
+## 🎓 Für Menschen: Wie wurde dieser Prompt erstellt?
+
+Dieser Prompt ist das Ergebnis einer systematischen Repository-Analyse durch Claude Code:
+
+1. **User Request**: "Analysiere das Repository und erstelle einen Prompt für eine andere KI"
+
+2. **Exploration Phase**:
+   - Einsatz eines spezialisierten Explore-Agenten
+   - Durchforstung aller Directories (api/, frontend/, ingestion/, processing/, docs/, scripts/)
+   - Identifikation von Patterns, Dependencies, Konfigurationen
+
+3. **Documentation Phase**:
+   - Lesen von README.md, PROJECT_STATUS.md, IMPLEMENTATION_SUMMARY.md
+   - Review aller Docs in `/docs`
+   - Analyse von docker-compose.yml, package.json, requirements.txt
+
+4. **Code Analysis Phase**:
+   - Grep-Suche nach TODO/FIXME/HACK/BUG Kommentaren
+   - Identifikation unvollständiger Implementierungen in `api/tasks.py`, `api/routers/documents.py`, `api/routers/search.py`
+   - Security Pattern Analysis
+
+5. **Synthesis Phase**:
+   - Zusammenfassung aller Erkenntnisse
+   - Strukturierung in logische Sections
+   - Erstellung von Code-Templates für TODOs
+   - Priorisierung nach Kritikalität
+
+6. **Update Phase (Version 1.1.0)**:
+   - Git History Review (letzte 10 Commits)
+   - Metadata-Hinzufügung
+   - Usage Guide für KI-Assistenten
+   - Quick Reference Tables
+   - Changelog
+
+**Ergebnis**: Ein 1700+ Zeilen umfassender Prompt, der einer anderen KI erlaubt, sofort produktiv am Projekt zu arbeiten, ohne das Repository selbst analysieren zu müssen.
+
+---
+
+## 🤝 Contributing to This Prompt
+
+Wenn du diesen Prompt verbesserst, bitte:
+
+1. **Update die Metadata**:
+   - Inkrementiere Version (1.1.0 → 1.2.0 für breaking changes, → 1.1.1 für patches)
+   - Aktualisiere "Last Updated" Datum
+   - Aktualisiere "Latest Commit" Hash
+
+2. **Dokumentiere Änderungen**:
+   - Füge Entry im Changelog hinzu
+   - Beschreibe was hinzugefügt/geändert/entfernt wurde
+
+3. **Halte Struktur konsistent**:
+   - Table of Contents aktualisieren bei neuen Sections
+   - Code-Beispiele formatieren
+   - Emojis sparsam verwenden (nur für visuelle Struktur)
+
+4. **Teste die Nutzbarkeit**:
+   - Ist die Information für eine KI ohne weitere Recherche nutzbar?
+   - Sind Code-Templates vollständig und korrekt?
+   - Sind Links und Referenzen aktuell?
+
+---
+
 **Dieses Dokument sollte einem AI-Assistenten alle Informationen geben, um effektiv an EchoGraph2 weiterzuentwickeln. Viel Erfolg!**
+
+---
+
+*Generated by Claude Code • Version 1.1.0 • Last Updated: 2025-11-04*
