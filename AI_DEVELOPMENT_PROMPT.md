@@ -8,13 +8,13 @@
 
 | Property | Value |
 |----------|-------|
-| **Document Version** | 1.2.1 |
+| **Document Version** | 1.2.2 |
 | **Created** | 2025-11-04 |
 | **Last Updated** | 2025-11-04 |
 | **Analysis Method** | Automated repository exploration via Claude Code |
 | **Repository** | https://github.com/MarcusGraetsch/EchoGraph2 |
 | **Branch** | `claude/github-repo-setup-011CUnZNkLAYPHSoRcpsLfa6` |
-| **Latest Commit** | `40fe227` - fix: CRITICAL - resolve ModuleNotFoundError |
+| **Latest Commit** | [PENDING] - fix: Docker health check - use curl instead of requests |
 | **Project Status** | Alpha v0.1.0 - Active Development |
 | **Total Lines** | ~1900 lines |
 
@@ -55,7 +55,9 @@
 - ⚠️ **Security First**: Alle Default-Passwörter MÜSSEN in Production geändert werden
 - 🔴 **Kritische TODOs**: Celery Tasks, MinIO Integration, Semantic Search
 - 📚 **Weitere Docs**: Siehe `/docs` Directory für detaillierte Guides
-- ✅ **FIXED**: ModuleNotFoundError für ingestion/processing modules - siehe CHANGELOG.md
+- ✅ **FIXED (v1.2.2)**: Docker health check - jetzt mit curl statt requests module
+- ✅ **FIXED (v1.2.1)**: Docker COPY Syntax - shell redirection entfernt
+- ✅ **FIXED (v1.2.0)**: ModuleNotFoundError für ingestion/processing modules
 - 🐛 **Known Issues**: Keycloak HTTP-Konfiguration (keine HTTPS) - Security Issue für Production!
 
 #### Navigation Shortcuts:
@@ -172,7 +174,8 @@ git log --oneline -5
 ## 🚀 Recent Changes (Last 10 Commits)
 
 ```
-[CURRENT] - fix: Docker COPY syntax error (shell redirection not supported)
+[CURRENT] - fix: Docker health check - use curl instead of requests module
+3d0c9df - fix: remove shell redirection from Docker COPY commands
 40fe227 - fix: CRITICAL - resolve ModuleNotFoundError for ingestion/processing
 120c93a - docs: update AI_DEVELOPMENT_PROMPT.md to v1.1.0
 607531f - docs: add comprehensive AI development prompt
@@ -181,6 +184,7 @@ a9f5496 - feat: add comprehensive Keycloak HTTP configuration script
 ```
 
 **Notable**:
+- 🔥 **CRITICAL FIX #3**: Fixed Docker health check - changed from Python requests to curl
 - 🔥 **CRITICAL FIX #2**: Removed shell redirection from COPY commands (Docker syntax error)
 - 🔥 **CRITICAL FIX #1**: Resolved ModuleNotFoundError preventing API/Celery startup
 - ⚠️ Mehrere Commits zum Keycloak HTTP-Setup (keine HTTPS-Konfiguration) → Security Issue für Production!
@@ -1771,6 +1775,30 @@ curl http://localhost:6333/collections/document_chunks/points?limit=10
 ---
 
 ## 📝 Changelog
+
+### Version 1.2.2 (2025-11-04)
+
+**Fixed:**
+- 🔥 **CRITICAL BUG #3**: Docker health check failure for API container
+  - Error: `container echograph-api is unhealthy` - container started but marked unhealthy
+  - Root cause: Health check used `requests` module which wasn't installed in requirements.txt
+  - The API uses `httpx` for HTTP requests, not `requests` (see api/requirements.txt:35)
+  - Previous health check: `python -c "import requests; requests.get('http://localhost:8000/health')"`
+  - New health check: `curl -f http://localhost:8000/health || exit 1`
+  - Solution uses `curl` which is already installed in Dockerfile (line 20)
+  - More lightweight and reliable for container health checks
+  - The `/health` endpoint exists and works correctly (api/main.py:69-72)
+
+**Updated:**
+- Metadata: Version `1.2.2`, Latest Commit `[PENDING]`
+- Recent Changes section with third critical fix
+- CHANGELOG.md with detailed fix description for all three deployment fixes
+
+**Context:**
+- Discovered during third deployment attempt after fixing build issues
+- Docker build completed successfully, all dependencies installed
+- Container started but failed health checks after 5s start period
+- This was the final blocker preventing successful deployment
 
 ### Version 1.2.1 (2025-11-04)
 

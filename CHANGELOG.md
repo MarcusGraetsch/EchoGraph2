@@ -8,6 +8,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **CRITICAL**: Fixed Docker health check failure for API container
+  - Root cause: Health check used `requests` module which wasn't installed in requirements.txt
+  - Changed health check from `python -c "import requests; requests.get(...)"` to `curl -f http://localhost:8000/health || exit 1`
+  - Solution uses `curl` which is already installed in the container (more lightweight and reliable)
+  - This fix resolves the "container echograph-api is unhealthy" error preventing service deployment
+  - Issue: Container built successfully but marked as unhealthy, blocking dependent services
+  - Commit: 3d0c9df
+
+- **CRITICAL**: Fixed Docker build failure with invalid COPY command syntax
+  - Root cause: Used shell redirection syntax `2>/dev/null || true` in Dockerfile COPY commands
+  - Error: `failed to calculate checksum of ref...: "/2>/dev/null": not found`
+  - Docker's COPY is a native command without shell context - shell syntax only works in RUN commands
+  - Removed all shell redirection from COPY commands in `api/Dockerfile`
+  - Cleaned up RUN pip install commands to use simple chaining with `&&`
+  - This fix allows Docker build to complete successfully
+  - Issue: Docker build process failed before creating container image
+
 - **CRITICAL**: Fixed ModuleNotFoundError for `ingestion` and `processing` modules in Docker containers
   - Updated `docker-compose.yml` to change build context from `./api` to `.` (root directory)
   - Modified `api/Dockerfile` to copy `ingestion/` and `processing/` modules into container
