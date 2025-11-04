@@ -9,9 +9,9 @@ import os
 import uuid
 from loguru import logger
 
-from database import get_db
-from models import Document, DocumentType, DocumentStatus, User
-from schemas import (
+from ..database import get_db
+from ..models import Document, DocumentType, DocumentStatus, User
+from ..schemas import (
     DocumentResponse,
     DocumentCreate,
     DocumentUpdate,
@@ -19,8 +19,8 @@ from schemas import (
     DocumentDetailResponse,
     Statistics
 )
-from keycloak_auth import get_current_active_user, KeycloakUser
-from config import settings
+from ..keycloak_auth import get_current_active_user, KeycloakUser
+from ..config import settings
 
 router = APIRouter()
 

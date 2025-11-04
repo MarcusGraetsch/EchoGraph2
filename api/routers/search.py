@@ -4,10 +4,10 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from loguru import logger
 
-from database import get_db
-from models import DocumentChunk, Document, User
-from schemas import SearchRequest, SearchResponse, SearchResult
-from keycloak_auth import get_current_active_user, KeycloakUser
+from ..database import get_db
+from ..models import DocumentChunk, Document, User
+from ..schemas import SearchRequest, SearchResponse, SearchResult
+from ..keycloak_auth import get_current_active_user, KeycloakUser
 
 router = APIRouter()
 

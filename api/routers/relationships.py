@@ -6,9 +6,9 @@ from sqlalchemy.orm import Session
 from datetime import datetime
 from loguru import logger
 
-from database import get_db
-from models import DocumentRelationship, Document, ValidationStatus, User
-from schemas import (
+from ..database import get_db
+from ..models import DocumentRelationship, Document, ValidationStatus, User
+from ..schemas import (
     RelationshipResponse,
     RelationshipDetailResponse,
     RelationshipCreate,
@@ -17,7 +17,7 @@ from schemas import (
     ComparisonResponse,
     ComparisonResult
 )
-from keycloak_auth import get_current_active_user, get_current_reviewer, KeycloakUser
+from ..keycloak_auth import get_current_active_user, get_current_reviewer, KeycloakUser
 
 router = APIRouter()
 
