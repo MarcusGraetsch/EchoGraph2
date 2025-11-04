@@ -28,13 +28,13 @@ RUN apt-get update && apt-get install -y \
 COPY api/requirements.txt ./api/
 
 # Copy requirements from ingestion and processing directories
-COPY ingestion/requirements.txt ./ingestion/ 2>/dev/null || true
-COPY processing/requirements.txt ./processing/ 2>/dev/null || true
+COPY ingestion/requirements.txt ./ingestion/
+COPY processing/requirements.txt ./processing/
 
 # Install Python dependencies
 RUN pip install --no-cache-dir -r ./api/requirements.txt && \
-    (pip install --no-cache-dir -r ./ingestion/requirements.txt 2>/dev/null || true) && \
-    (pip install --no-cache-dir -r ./processing/requirements.txt 2>/dev/null || true)
+    pip install --no-cache-dir -r ./ingestion/requirements.txt && \
+    pip install --no-cache-dir -r ./processing/requirements.txt
 
 # Copy application code
 COPY api/ ./api/

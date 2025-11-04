@@ -8,13 +8,13 @@
 
 | Property | Value |
 |----------|-------|
-| **Document Version** | 1.2.0 |
+| **Document Version** | 1.2.1 |
 | **Created** | 2025-11-04 |
 | **Last Updated** | 2025-11-04 |
 | **Analysis Method** | Automated repository exploration via Claude Code |
 | **Repository** | https://github.com/MarcusGraetsch/EchoGraph2 |
 | **Branch** | `claude/github-repo-setup-011CUnZNkLAYPHSoRcpsLfa6` |
-| **Latest Commit** | `120c93a` - docs: update AI_DEVELOPMENT_PROMPT.md to v1.1.0 |
+| **Latest Commit** | `40fe227` - fix: CRITICAL - resolve ModuleNotFoundError |
 | **Project Status** | Alpha v0.1.0 - Active Development |
 | **Total Lines** | ~1900 lines |
 
@@ -172,17 +172,17 @@ git log --oneline -5
 ## 🚀 Recent Changes (Last 10 Commits)
 
 ```
-[CURRENT] - fix: CRITICAL Docker import error for ingestion/processing modules
+[CURRENT] - fix: Docker COPY syntax error (shell redirection not supported)
+40fe227 - fix: CRITICAL - resolve ModuleNotFoundError for ingestion/processing
 120c93a - docs: update AI_DEVELOPMENT_PROMPT.md to v1.1.0
 607531f - docs: add comprehensive AI development prompt
 f78e346 - Merge pull request #43 (Keycloak debug)
 a9f5496 - feat: add comprehensive Keycloak HTTP configuration script
-cde741e - Merge pull request #42 (Keycloak debug)
-0849faa - feat: add script to disable Keycloak SSL requirement
 ```
 
 **Notable**:
-- 🔥 **CRITICAL FIX**: Resolved ModuleNotFoundError preventing API/Celery startup in Docker
+- 🔥 **CRITICAL FIX #2**: Removed shell redirection from COPY commands (Docker syntax error)
+- 🔥 **CRITICAL FIX #1**: Resolved ModuleNotFoundError preventing API/Celery startup
 - ⚠️ Mehrere Commits zum Keycloak HTTP-Setup (keine HTTPS-Konfiguration) → Security Issue für Production!
 
 ---
@@ -1772,10 +1772,32 @@ curl http://localhost:6333/collections/document_chunks/points?limit=10
 
 ## 📝 Changelog
 
+### Version 1.2.1 (2025-11-04)
+
+**Fixed:**
+- 🔥 **CRITICAL BUG #2**: Docker build failing with COPY command syntax error
+  - Error: `failed to calculate checksum... "/2>/dev/null": not found`
+  - Root cause: Shell redirection `2>/dev/null || true` in COPY commands
+  - Docker's COPY doesn't support shell syntax (no bash context)
+  - Docker interpreted `2>/dev/null` as part of filename
+  - Solution: Removed shell redirection from COPY commands
+  - Files are guaranteed to exist, no error handling needed
+  - Also cleaned up RUN pip install (removed unnecessary error handling)
+
+**Updated:**
+- Metadata: Latest Commit `40fe227`, Version `1.2.1`
+- Recent Changes section with both critical fixes
+- CHANGELOG.md with detailed fix description
+
+**Context:**
+- Discovered during second deployment attempt after first fix
+- Previous fix introduced shell syntax in Docker COPY commands
+- Build was failing at COPY ingestion/requirements.txt step
+
 ### Version 1.2.0 (2025-11-04)
 
 **Fixed:**
-- 🔥 **CRITICAL BUG**: Resolved ModuleNotFoundError for `ingestion` and `processing` modules
+- 🔥 **CRITICAL BUG #1**: Resolved ModuleNotFoundError for `ingestion` and `processing` modules
   - Root cause: Docker containers couldn't import modules outside `/api` directory
   - Solution: Changed build context from `./api` to `.` in docker-compose.yml
   - Updated Dockerfile to copy `ingestion/` and `processing/` directories
