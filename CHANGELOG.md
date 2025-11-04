@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **CRITICAL**: Fixed ImportError preventing API and Celery containers from starting
+  - Root cause: After changing CMD to `uvicorn api.main:app`, all imports broke due to absolute import paths
+  - All API files used absolute imports like `from config import settings` which failed with new package structure
+  - Changed all imports in api/ directory to relative imports (e.g., `from .config import settings`)
+  - Affected files: main.py, database.py, models.py, auth.py, tasks.py, and all routers (auth, documents, relationships, search)
+  - This fix resolves the persistent "api failed to start properly" error after previous fixes
+  - Issue: Container built successfully, health check worked, but application failed to import internal modules
+  - Commit: 4daa440
+
 - **CRITICAL**: Fixed Docker health check failure for API container
   - Root cause: Health check used `requests` module which wasn't installed in requirements.txt
   - Changed health check from `python -c "import requests; requests.get(...)"` to `curl -f http://localhost:8000/health || exit 1`
@@ -36,6 +45,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Issue: API service was continuously crashing with import errors preventing deployment success
 
 ### Added
+- **Deployment Script**: Added comprehensive logging to deploy-contabo.sh
+  - All deployment output now logged to timestamped file (e.g., deployment_20251104_143022.log)
+  - Log file location displayed at end of deployment for easy troubleshooting
+  - Helps diagnose deployment issues and track deployment history
+
 - Initial project setup with mono-repo structure
 - FastAPI backend with RESTful API
 - Next.js frontend with modern UI
