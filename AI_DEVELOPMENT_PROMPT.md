@@ -8,15 +8,15 @@
 
 | Property | Value |
 |----------|-------|
-| **Document Version** | 1.1.0 |
+| **Document Version** | 1.2.0 |
 | **Created** | 2025-11-04 |
 | **Last Updated** | 2025-11-04 |
 | **Analysis Method** | Automated repository exploration via Claude Code |
 | **Repository** | https://github.com/MarcusGraetsch/EchoGraph2 |
 | **Branch** | `claude/github-repo-setup-011CUnZNkLAYPHSoRcpsLfa6` |
-| **Latest Commit** | `607531f` - docs: add comprehensive AI development prompt |
+| **Latest Commit** | `120c93a` - docs: update AI_DEVELOPMENT_PROMPT.md to v1.1.0 |
 | **Project Status** | Alpha v0.1.0 - Active Development |
-| **Total Lines** | ~1600 lines |
+| **Total Lines** | ~1900 lines |
 
 ---
 
@@ -55,7 +55,8 @@
 - ⚠️ **Security First**: Alle Default-Passwörter MÜSSEN in Production geändert werden
 - 🔴 **Kritische TODOs**: Celery Tasks, MinIO Integration, Semantic Search
 - 📚 **Weitere Docs**: Siehe `/docs` Directory für detaillierte Guides
-- 🐛 **Known Issues**: Keycloak HTTP-Konfiguration wurde in letzten Commits bearbeitet (siehe commits a9f5496, 0849faa)
+- ✅ **FIXED**: ModuleNotFoundError für ingestion/processing modules - siehe CHANGELOG.md
+- 🐛 **Known Issues**: Keycloak HTTP-Konfiguration (keine HTTPS) - Security Issue für Production!
 
 #### Navigation Shortcuts:
 
@@ -138,7 +139,8 @@ Dieser Prompt wurde erstellt durch:
 | `api/routers/documents.py:97,266` | 🔴 TODO: MinIO integration |
 | `api/routers/search.py:31,54` | 🔴 TODO: Semantic search |
 | `.env.example` | ⚠️ Change ALL passwords for production |
-| `docker-compose.yml` | Service orchestration |
+| `docker-compose.yml` | ✅ FIXED: Build context & volume mounts for modules |
+| `api/Dockerfile` | ✅ FIXED: Now copies ingestion/processing modules |
 | `PROJECT_STATUS.md` | Current implementation status |
 
 ### Key Commands
@@ -170,14 +172,18 @@ git log --oneline -5
 ## 🚀 Recent Changes (Last 10 Commits)
 
 ```
-607531f - docs: add comprehensive AI development prompt (HEAD)
+[CURRENT] - fix: CRITICAL Docker import error for ingestion/processing modules
+120c93a - docs: update AI_DEVELOPMENT_PROMPT.md to v1.1.0
+607531f - docs: add comprehensive AI development prompt
 f78e346 - Merge pull request #43 (Keycloak debug)
 a9f5496 - feat: add comprehensive Keycloak HTTP configuration script
 cde741e - Merge pull request #42 (Keycloak debug)
 0849faa - feat: add script to disable Keycloak SSL requirement
 ```
 
-**Notable**: Mehrere Commits zum Keycloak HTTP-Setup (keine HTTPS-Konfiguration) → Security Issue für Production!
+**Notable**:
+- 🔥 **CRITICAL FIX**: Resolved ModuleNotFoundError preventing API/Celery startup in Docker
+- ⚠️ Mehrere Commits zum Keycloak HTTP-Setup (keine HTTPS-Konfiguration) → Security Issue für Production!
 
 ---
 
@@ -1765,6 +1771,30 @@ curl http://localhost:6333/collections/document_chunks/points?limit=10
 ---
 
 ## 📝 Changelog
+
+### Version 1.2.0 (2025-11-04)
+
+**Fixed:**
+- 🔥 **CRITICAL BUG**: Resolved ModuleNotFoundError for `ingestion` and `processing` modules
+  - Root cause: Docker containers couldn't import modules outside `/api` directory
+  - Solution: Changed build context from `./api` to `.` in docker-compose.yml
+  - Updated Dockerfile to copy `ingestion/` and `processing/` directories
+  - Added `PYTHONPATH=/app` environment variable
+  - Updated volume mounts for development hot-reload
+  - Changed import paths: `main:app` → `api.main:app`, `tasks` → `api.tasks`
+  - This was preventing API and Celery worker services from starting in production deployments
+
+**Updated:**
+- Metadata: Latest Commit `120c93a`, Version `1.2.0`, Total Lines `~1900`
+- Recent Changes section with critical fix note
+- Critical Files table with fix markers
+- Known Issues section
+
+**Context:**
+- Discovered during production VM deployment
+- API service was crash-looping with import errors
+- Celery worker also affected by same issue
+- Fix verified to resolve deployment failures
 
 ### Version 1.1.0 (2025-11-04)
 

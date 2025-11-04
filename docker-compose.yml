@@ -137,8 +137,8 @@ services:
   # FastAPI Backend
   api:
     build:
-      context: ./api
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./api/Dockerfile
     container_name: echograph-api
     ports:
       - "8000:8000"
@@ -159,6 +159,7 @@ services:
       - KEYCLOAK_REALM=${KEYCLOAK_REALM:-echograph}
       - KEYCLOAK_CLIENT_ID=${KEYCLOAK_CLIENT_ID:-echograph-api}
       - KEYCLOAK_CLIENT_SECRET=${KEYCLOAK_CLIENT_SECRET}
+      - PYTHONPATH=/app
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 10s
@@ -166,7 +167,9 @@ services:
       retries: 5
       start_period: 30s
     volumes:
-      - ./api:/app
+      - ./api:/app/api
+      - ./ingestion:/app/ingestion
+      - ./processing:/app/processing
       - ./data:/app/data
     depends_on:
       postgres:
@@ -186,10 +189,10 @@ services:
   # Celery Worker
   celery-worker:
     build:
-      context: ./api
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./api/Dockerfile
     container_name: echograph-celery-worker
-    command: celery -A tasks worker --loglevel=info
+    command: celery -A api.tasks worker --loglevel=info
     environment:
       - DATABASE_URL=${DATABASE_URL}
       - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
@@ -202,14 +205,15 @@ services:
       - QDRANT_HOST=${QDRANT_HOST:-qdrant}
       - QDRANT_PORT=${QDRANT_PORT:-6333}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - PYTHONPATH=/app
     healthcheck:
-      test: ["CMD-SHELL", "celery -A tasks inspect ping -d celery@$$HOSTNAME"]
+      test: ["CMD-SHELL", "celery -A api.tasks inspect ping -d celery@$$HOSTNAME"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 30s
     volumes:
-      - ./api:/app
+      - ./api:/app/api
       - ./ingestion:/app/ingestion
       - ./processing:/app/processing
       - ./data:/app/data
