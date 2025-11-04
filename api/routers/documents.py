@@ -7,7 +7,13 @@ from sqlalchemy import or_
 from datetime import datetime
 import os
 import uuid
+import sys
+from pathlib import Path
 from loguru import logger
+
+# Add parent directory to path to import ingestion module
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+from ingestion.storage import StorageClient
 
 from database import get_db
 from models import Document, DocumentType, DocumentStatus, User
@@ -23,6 +29,9 @@ from keycloak_auth import get_current_active_user, KeycloakUser
 from config import settings
 
 router = APIRouter()
+
+# Initialize storage client
+storage_client = StorageClient()
 
 
 @router.post("/upload", response_model=DocumentResponse, status_code=status.HTTP_201_CREATED)
@@ -77,7 +86,7 @@ async def upload_document(
     filename = f"{file_id}{file_extension}"
     file_path = os.path.join(settings.minio_bucket, filename)
 
-    # Create document record
+    # Create document record with UPLOADING status
     document = Document(
         title=title,
         document_type=doc_type,
@@ -94,12 +103,57 @@ async def upload_document(
     db.commit()
     db.refresh(document)
 
-    # TODO: Save file to MinIO and trigger processing
-    # For now, we'll just set status to processing
-    document.status = DocumentStatus.PROCESSING
-    db.commit()
+    try:
+        # Upload file to MinIO
+        logger.info(f"Uploading file {filename} to MinIO...")
 
-    logger.info(f"Document uploaded: {document.id} - {document.title}")
+        # Read file content
+        file_content = await file.read()
+        file_size = len(file_content)
+
+        # Reset file pointer for storage client
+        from io import BytesIO
+        file_stream = BytesIO(file_content)
+
+        # Upload to MinIO
+        object_name = storage_client.upload_fileobj(
+            file_stream,
+            filename,
+            file_size,
+            content_type=file.content_type
+        )
+
+        if object_name is None:
+            # Upload failed
+            document.status = DocumentStatus.FAILED
+            db.commit()
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to upload file to storage"
+            )
+
+        # Update document status to PROCESSING
+        document.status = DocumentStatus.PROCESSING
+        db.commit()
+
+        logger.info(f"Document uploaded successfully: {document.id} - {document.title}")
+
+        # TODO: Trigger Celery task for document processing
+        # from tasks import process_document
+        # process_document.delay(document.id)
+
+    except HTTPException:
+        # Re-raise HTTP exceptions
+        raise
+    except Exception as e:
+        # Handle any other errors
+        logger.error(f"Error uploading document {document.id}: {str(e)}")
+        document.status = DocumentStatus.FAILED
+        db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to upload document: {str(e)}"
+        )
 
     return document
 
@@ -263,8 +317,21 @@ async def delete_document(
             detail="Document not found"
         )
 
-    # TODO: Delete file from MinIO
+    # Delete file from MinIO
+    try:
+        # Extract filename from file_path
+        filename = os.path.basename(document.file_path)
 
+        logger.info(f"Deleting file {filename} from MinIO...")
+        success = storage_client.delete_file(filename)
+
+        if not success:
+            logger.warning(f"Failed to delete file {filename} from MinIO, but continuing with DB deletion")
+    except Exception as e:
+        logger.error(f"Error deleting file from MinIO: {str(e)}")
+        # Continue with DB deletion even if MinIO deletion fails
+
+    # Delete from database
     db.delete(document)
     db.commit()
 
