@@ -4,7 +4,7 @@ from celery import Celery
 from loguru import logger
 import sys
 
-from config import settings
+from .config import settings
 
 # Configure logging
 logger.remove()

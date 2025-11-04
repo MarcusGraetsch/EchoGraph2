@@ -6,9 +6,9 @@ from fastapi.responses import JSONResponse
 from loguru import logger
 import sys
 
-from config import settings
-from database import init_db
-from routers import documents, relationships, search, auth, websocket
+from .config import settings
+from .database import init_db
+from .routers import documents, relationships, search, auth, websocket
 
 # Configure logging
 logger.remove()

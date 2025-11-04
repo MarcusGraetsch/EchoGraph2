@@ -8,13 +8,13 @@
 
 | Property | Value |
 |----------|-------|
-| **Document Version** | 1.2.2 |
+| **Document Version** | 1.2.3 |
 | **Created** | 2025-11-04 |
 | **Last Updated** | 2025-11-04 |
 | **Analysis Method** | Automated repository exploration via Claude Code |
 | **Repository** | https://github.com/MarcusGraetsch/EchoGraph2 |
 | **Branch** | `claude/github-repo-setup-011CUnZNkLAYPHSoRcpsLfa6` |
-| **Latest Commit** | [PENDING] - fix: Docker health check - use curl instead of requests |
+| **Latest Commit** | `4daa440` - fix: convert all API imports to relative imports |
 | **Project Status** | Alpha v0.1.0 - Active Development |
 | **Total Lines** | ~1900 lines |
 
@@ -55,6 +55,7 @@
 - ⚠️ **Security First**: Alle Default-Passwörter MÜSSEN in Production geändert werden
 - 🔴 **Kritische TODOs**: Celery Tasks, MinIO Integration, Semantic Search
 - 📚 **Weitere Docs**: Siehe `/docs` Directory für detaillierte Guides
+- ✅ **FIXED (v1.2.3)**: ImportError - alle API imports auf relative imports umgestellt
 - ✅ **FIXED (v1.2.2)**: Docker health check - jetzt mit curl statt requests module
 - ✅ **FIXED (v1.2.1)**: Docker COPY Syntax - shell redirection entfernt
 - ✅ **FIXED (v1.2.0)**: ModuleNotFoundError für ingestion/processing modules
@@ -174,7 +175,8 @@ git log --oneline -5
 ## 🚀 Recent Changes (Last 10 Commits)
 
 ```
-[CURRENT] - fix: Docker health check - use curl instead of requests module
+4daa440 - fix: convert all API imports to relative imports for package structure
+b0b26f2 - fix: Docker health check - use curl instead of requests module
 3d0c9df - fix: remove shell redirection from Docker COPY commands
 40fe227 - fix: CRITICAL - resolve ModuleNotFoundError for ingestion/processing
 120c93a - docs: update AI_DEVELOPMENT_PROMPT.md to v1.1.0
@@ -184,6 +186,7 @@ a9f5496 - feat: add comprehensive Keycloak HTTP configuration script
 ```
 
 **Notable**:
+- 🔥 **CRITICAL FIX #4**: Fixed ImportError with relative imports - API now starts successfully!
 - 🔥 **CRITICAL FIX #3**: Fixed Docker health check - changed from Python requests to curl
 - 🔥 **CRITICAL FIX #2**: Removed shell redirection from COPY commands (Docker syntax error)
 - 🔥 **CRITICAL FIX #1**: Resolved ModuleNotFoundError preventing API/Celery startup
@@ -1775,6 +1778,37 @@ curl http://localhost:6333/collections/document_chunks/points?limit=10
 ---
 
 ## 📝 Changelog
+
+### Version 1.2.3 (2025-11-04)
+
+**Fixed:**
+- 🔥 **CRITICAL BUG #4**: ImportError preventing API and Celery from starting
+  - Error: API container started but application failed with import errors
+  - Root cause: After changing CMD to `uvicorn api.main:app`, absolute imports broke
+  - All imports like `from config import settings` failed (looked for top-level module, not `api.config`)
+  - Solution: Converted all API imports to relative imports (e.g., `from .config import settings`)
+  - Affected files:
+    - api/main.py: config → .config, database → .database, routers → .routers
+    - api/database.py, models.py, auth.py, tasks.py: All converted to relative imports
+    - api/routers/*.py: All converted to parent relative imports (..database, ..models, etc.)
+  - This was the actual root cause of "api failed to start properly" after previous fixes
+  - Previous fixes solved build and health check, but application still couldn't import modules
+
+**Added:**
+- Deployment logging: deploy-contabo.sh now creates timestamped log files
+  - Format: deployment_YYYYMMDD_HHMMSS.log
+  - Log location displayed at end of deployment
+  - Helps with troubleshooting and deployment history
+
+**Updated:**
+- Metadata: Version `1.2.3`, Latest Commit `4daa440`
+- Recent Changes section with fourth critical fix
+- CHANGELOG.md with comprehensive fix documentation
+
+**Context:**
+- Discovered during fourth deployment attempt
+- Container built successfully, health check passed, but application imports failed
+- This completes the deployment fix chain: module paths → Docker syntax → health check → imports
 
 ### Version 1.2.2 (2025-11-04)
 

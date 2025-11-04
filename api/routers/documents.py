@@ -11,13 +11,9 @@ import sys
 from pathlib import Path
 from loguru import logger
 
-# Add parent directory to path to import ingestion module
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-from ingestion.storage import StorageClient
-
-from database import get_db
-from models import Document, DocumentType, DocumentStatus, User
-from schemas import (
+from ..database import get_db
+from ..models import Document, DocumentType, DocumentStatus, User
+from ..schemas import (
     DocumentResponse,
     DocumentCreate,
     DocumentUpdate,
@@ -25,8 +21,8 @@ from schemas import (
     DocumentDetailResponse,
     Statistics
 )
-from keycloak_auth import get_current_active_user, KeycloakUser
-from config import settings
+from ..keycloak_auth import get_current_active_user, KeycloakUser
+from ..config import settings
 
 router = APIRouter()
 

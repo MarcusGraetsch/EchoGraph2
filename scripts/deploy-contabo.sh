@@ -37,6 +37,15 @@ print_header() {
     echo ""
 }
 
+# Setup deployment logging
+LOGFILE="deployment_$(date +%Y%m%d_%H%M%S).log"
+echo "Starting deployment at $(date)" > "${LOGFILE}"
+echo "Logging deployment to: ${LOGFILE}"
+echo ""
+
+# Redirect all output to both console and log file
+exec > >(tee -a "${LOGFILE}") 2>&1
+
 # Check if running as root
 if [ "$EUID" -eq 0 ]; then
     print_error "Please do not run this script as root!"
@@ -953,5 +962,12 @@ if [ "$COMPOSE_CMD" = "sudo docker-compose" ]; then
     echo "Or run: newgrp docker"
     echo ""
 fi
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "  Deployment Log File:"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "  Location: $(pwd)/${LOGFILE}"
+echo "  View log: cat ${LOGFILE}"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
 print_success "Setup complete! Visit http://$SERVER_IP:3000 to get started."
 echo ""
