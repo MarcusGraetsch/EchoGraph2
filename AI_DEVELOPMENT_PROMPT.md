@@ -8,13 +8,13 @@
 
 | Property | Value |
 |----------|-------|
-| **Document Version** | 1.2.3 |
+| **Document Version** | 1.2.4 |
 | **Created** | 2025-11-04 |
 | **Last Updated** | 2025-11-04 |
 | **Analysis Method** | Automated repository exploration via Claude Code |
 | **Repository** | https://github.com/MarcusGraetsch/EchoGraph2 |
 | **Branch** | `claude/github-repo-setup-011CUnZNkLAYPHSoRcpsLfa6` |
-| **Latest Commit** | `4daa440` - fix: convert all API imports to relative imports |
+| **Latest Commit** | `95e6250` - fix: add automatic git pull to deployment script |
 | **Project Status** | Alpha v0.1.0 - Active Development |
 | **Total Lines** | ~1900 lines |
 
@@ -55,6 +55,7 @@
 - ⚠️ **Security First**: Alle Default-Passwörter MÜSSEN in Production geändert werden
 - 🔴 **Kritische TODOs**: Celery Tasks, MinIO Integration, Semantic Search
 - 📚 **Weitere Docs**: Siehe `/docs` Directory für detaillierte Guides
+- ✅ **FIXED (v1.2.4)**: Deployment script - automatisches git pull für Updates
 - ✅ **FIXED (v1.2.3)**: ImportError - alle API imports auf relative imports umgestellt
 - ✅ **FIXED (v1.2.2)**: Docker health check - jetzt mit curl statt requests module
 - ✅ **FIXED (v1.2.1)**: Docker COPY Syntax - shell redirection entfernt
@@ -175,6 +176,8 @@ git log --oneline -5
 ## 🚀 Recent Changes (Last 10 Commits)
 
 ```
+95e6250 - fix: add automatic git pull to deployment script for existing repositories
+ca67f82 - docs: update documentation for v1.2.3
 4daa440 - fix: convert all API imports to relative imports for package structure
 b0b26f2 - fix: Docker health check - use curl instead of requests module
 3d0c9df - fix: remove shell redirection from Docker COPY commands
@@ -186,6 +189,7 @@ a9f5496 - feat: add comprehensive Keycloak HTTP configuration script
 ```
 
 **Notable**:
+- 🔥 **CRITICAL FIX #5**: Fixed deployment script to pull latest code - prevents old code errors!
 - 🔥 **CRITICAL FIX #4**: Fixed ImportError with relative imports - API now starts successfully!
 - 🔥 **CRITICAL FIX #3**: Fixed Docker health check - changed from Python requests to curl
 - 🔥 **CRITICAL FIX #2**: Removed shell redirection from COPY commands (Docker syntax error)
@@ -1778,6 +1782,32 @@ curl http://localhost:6333/collections/document_chunks/points?limit=10
 ---
 
 ## 📝 Changelog
+
+### Version 1.2.4 (2025-11-04)
+
+**Fixed:**
+- 🔥 **CRITICAL BUG #5**: Deployment script not pulling latest code updates
+  - Error: `NameError: name 'StorageClient' is not defined` from outdated code on VM
+  - Root cause: Deployment script clones repo once but never pulls updates on subsequent runs
+  - Docker volume mounts (`./api:/app/api`, `./ingestion:/app/ingestion`, etc.) override container code with VM filesystem
+  - Without git pull, VM retains old code indefinitely despite new Docker builds
+  - Solution: Added automatic `git pull origin $(git branch --show-current)` in two scenarios:
+    1. When already inside EchoGraph2 repository
+    2. When EchoGraph2 exists as subdirectory and user chooses to use it
+  - Shows clear status messages (updated vs already up to date)
+  - This ensures every deployment run uses the latest code from GitHub
+
+**Updated:**
+- Metadata: Version `1.2.4`, Latest Commit `95e6250`
+- Recent Changes section with fifth critical fix
+- CHANGELOG.md with volume mount explanation
+
+**Context:**
+- Discovered during fifth deployment attempt
+- VM had old code with module-level `storage_client = StorageClient()` without import
+- This line doesn't exist in current git repo - proves VM was using outdated code
+- Volume mounts mean container always uses VM filesystem, not Docker image
+- Completes the deployment fix chain: module paths → Docker syntax → health check → imports → code updates
 
 ### Version 1.2.3 (2025-11-04)
 

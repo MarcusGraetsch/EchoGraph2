@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **CRITICAL**: Fixed deployment script not pulling latest code updates
+  - Root cause: Deployment script clones repo on first run but never pulls updates on subsequent runs
+  - Docker volume mounts (`./api:/app/api`) override container code with VM filesystem
+  - Outdated code on VM caused errors like: `NameError: name 'StorageClient' is not defined`
+  - Added automatic `git pull` in two scenarios:
+    1. When already inside EchoGraph2 repository
+    2. When EchoGraph2 exists as subdirectory
+  - Pulls from current branch automatically with clear status messages
+  - This ensures every deployment uses latest GitHub code, preventing old code errors
+  - Commit: 95e6250
+
 - **CRITICAL**: Fixed ImportError preventing API and Celery containers from starting
   - Root cause: After changing CMD to `uvicorn api.main:app`, all imports broke due to absolute import paths
   - All API files used absolute imports like `from config import settings` which failed with new package structure
