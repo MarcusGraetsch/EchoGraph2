@@ -652,6 +652,27 @@ fi
 
 echo ""
 
+# Build Docker images with latest code
+print_info "Building Docker images with latest code..."
+echo "  This ensures containers use code from git repo, not cached layers"
+echo ""
+
+if $COMPOSE_CMD build --no-cache api celery-worker frontend 2>&1 | grep -v "attribute.*version.*obsolete"; then
+    print_success "Docker images built successfully"
+else
+    print_error "Failed to build Docker images"
+    echo ""
+    echo "This is critical - without fresh build, containers will use old code!"
+    echo ""
+    read -p "Continue anyway? (NOT recommended) (y/n) " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        exit 1
+    fi
+fi
+
+echo ""
+
 # Start services
 print_info "Starting Docker containers..."
 if $COMPOSE_CMD up -d 2>&1 | grep -v "attribute.*version.*obsolete"; then
@@ -759,10 +780,17 @@ if [ "$services_ok" = false ]; then
     # Check API logs for common issues
     api_logs=$($COMPOSE_CMD logs --tail=30 api 2>&1)
 
-    if echo "$api_logs" | grep -q "ImportError\|ModuleNotFoundError"; then
-        print_error "Python import error detected"
-        echo "  Issue: Missing Python dependencies or import path issues"
-        echo "  Fix: Rebuilding API container with fresh dependencies..."
+    if echo "$api_logs" | grep -q "ImportError\|ModuleNotFoundError\|NameError"; then
+        if echo "$api_logs" | grep -q "NameError.*StorageClient"; then
+            print_error "StorageClient NameError detected - OLD CODE in container!"
+            echo "  Issue: Docker container built with old/cached code"
+            echo "  Root cause: Container image not rebuilt after git pull"
+            echo "  Fix: Rebuilding with --no-cache to force fresh code..."
+        else
+            print_error "Python import error detected"
+            echo "  Issue: Missing Python dependencies or import path issues"
+            echo "  Fix: Rebuilding API container with fresh dependencies..."
+        fi
         $COMPOSE_CMD build --no-cache api
         $COMPOSE_CMD up -d api
         sleep 15
