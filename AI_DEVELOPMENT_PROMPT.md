@@ -8,13 +8,13 @@
 
 | Property | Value |
 |----------|-------|
-| **Document Version** | 1.2.4 |
+| **Document Version** | 1.2.5 |
 | **Created** | 2025-11-04 |
 | **Last Updated** | 2025-11-04 |
 | **Analysis Method** | Automated repository exploration via Claude Code |
 | **Repository** | https://github.com/MarcusGraetsch/EchoGraph2 |
 | **Branch** | `claude/github-repo-setup-011CUnZNkLAYPHSoRcpsLfa6` |
-| **Latest Commit** | `95e6250` - fix: add automatic git pull to deployment script |
+| **Latest Commit** | `36cce23` - fix: script self-update and log display |
 | **Project Status** | Alpha v0.1.0 - Active Development |
 | **Total Lines** | ~1900 lines |
 
@@ -55,6 +55,7 @@
 - ⚠️ **Security First**: Alle Default-Passwörter MÜSSEN in Production geändert werden
 - 🔴 **Kritische TODOs**: Celery Tasks, MinIO Integration, Semantic Search
 - 📚 **Weitere Docs**: Siehe `/docs` Directory für detaillierte Guides
+- ✅ **FIXED (v1.2.5)**: Script self-update - automatische Script-Updates vor Deployment
 - ✅ **FIXED (v1.2.4)**: Deployment script - automatisches git pull für Updates
 - ✅ **FIXED (v1.2.3)**: ImportError - alle API imports auf relative imports umgestellt
 - ✅ **FIXED (v1.2.2)**: Docker health check - jetzt mit curl statt requests module
@@ -176,6 +177,8 @@ git log --oneline -5
 ## 🚀 Recent Changes (Last 10 Commits)
 
 ```
+36cce23 - fix: add script self-update and fix log file path display
+5fda276 - docs: update documentation for v1.2.4
 95e6250 - fix: add automatic git pull to deployment script for existing repositories
 ca67f82 - docs: update documentation for v1.2.3
 4daa440 - fix: convert all API imports to relative imports for package structure
@@ -184,11 +187,10 @@ b0b26f2 - fix: Docker health check - use curl instead of requests module
 40fe227 - fix: CRITICAL - resolve ModuleNotFoundError for ingestion/processing
 120c93a - docs: update AI_DEVELOPMENT_PROMPT.md to v1.1.0
 607531f - docs: add comprehensive AI development prompt
-f78e346 - Merge pull request #43 (Keycloak debug)
-a9f5496 - feat: add comprehensive Keycloak HTTP configuration script
 ```
 
 **Notable**:
+- 🔥 **CRITICAL FIX #6**: Script self-update mechanism - solves chicken-and-egg problem!
 - 🔥 **CRITICAL FIX #5**: Fixed deployment script to pull latest code - prevents old code errors!
 - 🔥 **CRITICAL FIX #4**: Fixed ImportError with relative imports - API now starts successfully!
 - 🔥 **CRITICAL FIX #3**: Fixed Docker health check - changed from Python requests to curl
@@ -1782,6 +1784,36 @@ curl http://localhost:6333/collections/document_chunks/points?limit=10
 ---
 
 ## 📝 Changelog
+
+### Version 1.2.5 (2025-11-04)
+
+**Fixed:**
+- 🔥 **CRITICAL BUG #6**: Deployment script self-update and log file path display
+  - Error: Same StorageClient error persisted despite previous git pull fix
+  - Root cause: Chicken-and-egg problem - VM runs old script without self-update capability
+  - Previous fix added git pull to script, but VM still executes old version without that fix
+  - Solution: Script self-update mechanism (runs BEFORE any operations):
+    - Lines 40-59: Check for updates via `git fetch origin`
+    - Compare local vs remote refs: `git rev-parse @ vs @{u}`
+    - If updates available: `git pull` then `exec "$0" --no-update`
+    - `--no-update` flag prevents infinite loop on re-execution
+    - This ensures script ALWAYS runs latest version from GitHub
+  - Fixed log file path display (lines 61-75, 1013-1015):
+    - Calculate `LOGFILE` path BEFORE `exec tee` redirection
+    - Store both `LOGFILE` (full path) and `LOGFILE_NAME` (basename)
+    - Display filename and full path at end for easy access
+    - Previous: `$(pwd)/${LOGFILE}` didn't work after exec redirect
+
+**Updated:**
+- Metadata: Version `1.2.5`, Latest Commit `36cce23`
+- Recent Changes section with sixth critical fix
+- CHANGELOG.md with self-update mechanism explanation
+
+**Context:**
+- Discovered during sixth deployment attempt
+- Same StorageClient error appeared despite previous fix
+- Root cause: VM executing old script version that lacks git pull
+- This completes deployment fix chain: module paths → Docker syntax → health check → imports → code updates → script self-update
 
 ### Version 1.2.4 (2025-11-04)
 
