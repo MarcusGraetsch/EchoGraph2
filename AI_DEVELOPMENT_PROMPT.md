@@ -8,13 +8,13 @@
 
 | Property | Value |
 |----------|-------|
-| **Document Version** | 1.2.5 |
+| **Document Version** | 1.3.0 |
 | **Created** | 2025-11-04 |
-| **Last Updated** | 2025-11-04 |
+| **Last Updated** | 2025-11-05 |
 | **Analysis Method** | Automated repository exploration via Claude Code |
 | **Repository** | https://github.com/MarcusGraetsch/EchoGraph2 |
 | **Branch** | `claude/github-repo-setup-011CUnZNkLAYPHSoRcpsLfa6` |
-| **Latest Commit** | `36cce23` - fix: script self-update and log display |
+| **Latest Commit** | Production deployment configuration (StorageClient fix) |
 | **Project Status** | Alpha v0.1.0 - Active Development |
 | **Total Lines** | ~1900 lines |
 
@@ -55,6 +55,7 @@
 - ⚠️ **Security First**: Alle Default-Passwörter MÜSSEN in Production geändert werden
 - 🔴 **Kritische TODOs**: Celery Tasks, MinIO Integration, Semantic Search
 - 📚 **Weitere Docs**: Siehe `/docs` Directory für detaillierte Guides
+- ✅ **FIXED (v1.3.0)**: Production deployment - separate docker-compose.prod.yml ohne Code-Mounts
 - ✅ **FIXED (v1.2.5)**: Script self-update - automatische Script-Updates vor Deployment
 - ✅ **FIXED (v1.2.4)**: Deployment script - automatisches git pull für Updates
 - ✅ **FIXED (v1.2.3)**: ImportError - alle API imports auf relative imports umgestellt
@@ -190,6 +191,17 @@ b0b26f2 - fix: Docker health check - use curl instead of requests module
 ```
 
 **Notable**:
+- 🔥 **CRITICAL FIX #7**: Production deployment configuration - solves persistent StorageClient error!
+  - **Root Cause**: Docker volume mounts (`./api:/app/api`) override container code with VM filesystem
+  - **Problem**: VM had old `documents.py` with `StorageClient()` at line 30, not in git repo
+  - **Solution**: Created `docker-compose.prod.yml` WITHOUT code volume mounts for production
+  - **Impact**: Containers now use code from Docker image, not VM filesystem
+  - **Files Changed**:
+    - New: `docker-compose.prod.yml` - production config without code mounts
+    - Modified: `scripts/deploy-contabo.sh` - uses `-f docker-compose.prod.yml`
+  - **Dev vs Prod**:
+    - Dev (`docker-compose.yml`): Mounts `./api`, `./ingestion`, `./processing` for hot-reload
+    - Prod (`docker-compose.prod.yml`): Only mounts `./data` for persistence
 - 🔥 **CRITICAL FIX #6**: Script self-update mechanism - solves chicken-and-egg problem!
 - 🔥 **CRITICAL FIX #5**: Fixed deployment script to pull latest code - prevents old code errors!
 - 🔥 **CRITICAL FIX #4**: Fixed ImportError with relative imports - API now starts successfully!
