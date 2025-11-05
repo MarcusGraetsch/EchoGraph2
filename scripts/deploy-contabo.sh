@@ -37,14 +37,42 @@ print_header() {
     echo ""
 }
 
+# Self-update mechanism: Pull latest version of this script
+# Skip if --no-update flag is passed (prevents infinite loop)
+if [[ "$1" != "--no-update" ]] && [ -d ".git" ]; then
+    echo "Checking for script updates..."
+    git fetch origin >/dev/null 2>&1 || true
+
+    LOCAL=$(git rev-parse @ 2>/dev/null || echo "")
+    REMOTE=$(git rev-parse @{u} 2>/dev/null || echo "")
+
+    if [ -n "$LOCAL" ] && [ -n "$REMOTE" ] && [ "$LOCAL" != "$REMOTE" ]; then
+        print_warning "Updates available! Pulling latest changes..."
+        git pull origin $(git branch --show-current)
+        print_success "Script updated! Restarting with new version..."
+        echo ""
+        exec "$0" --no-update
+    else
+        print_success "Script is up to date"
+    fi
+    echo ""
+fi
+
 # Setup deployment logging
-LOGFILE="deployment_$(date +%Y%m%d_%H%M%S).log"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+LOGFILE="${REPO_DIR}/deployment_$(date +%Y%m%d_%H%M%S).log"
+LOGFILE_NAME="$(basename "${LOGFILE}")"
+
 echo "Starting deployment at $(date)" > "${LOGFILE}"
-echo "Logging deployment to: ${LOGFILE}"
+echo "Log file: ${LOGFILE}"
 echo ""
 
 # Redirect all output to both console and log file
 exec > >(tee -a "${LOGFILE}") 2>&1
+
+print_info "Deployment logging to: ${LOGFILE_NAME}"
+echo ""
 
 # Check if running as root
 if [ "$EUID" -eq 0 ]; then
@@ -982,8 +1010,9 @@ fi
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "  Deployment Log File:"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  Location: $(pwd)/${LOGFILE}"
-echo "  View log: cat ${LOGFILE}"
+echo "  File name: ${LOGFILE_NAME}"
+echo "  Full path: ${LOGFILE}"
+echo "  View log:  cat ${LOGFILE_NAME}"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 print_success "Setup complete! Visit http://$SERVER_IP:3000 to get started."
