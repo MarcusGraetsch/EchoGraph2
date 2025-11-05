@@ -8,13 +8,13 @@
 
 | Property | Value |
 |----------|-------|
-| **Document Version** | 1.3.0 |
+| **Document Version** | 1.4.0 |
 | **Created** | 2025-11-04 |
 | **Last Updated** | 2025-11-05 |
 | **Analysis Method** | Automated repository exploration via Claude Code |
 | **Repository** | https://github.com/MarcusGraetsch/EchoGraph2 |
 | **Branch** | `claude/github-repo-setup-011CUnZNkLAYPHSoRcpsLfa6` |
-| **Latest Commit** | Production deployment configuration (StorageClient fix) |
+| **Latest Commit** | `c942eb9` - Docker rebuild fix (StorageClient complete) |
 | **Project Status** | Alpha v0.1.0 - Active Development |
 | **Total Lines** | ~1900 lines |
 
@@ -55,6 +55,7 @@
 - ⚠️ **Security First**: Alle Default-Passwörter MÜSSEN in Production geändert werden
 - 🔴 **Kritische TODOs**: Celery Tasks, MinIO Integration, Semantic Search
 - 📚 **Weitere Docs**: Siehe `/docs` Directory für detaillierte Guides
+- ✅ **FIXED (v1.4.0)**: Docker build - erzwingt Rebuild mit --no-cache für frischen Code
 - ✅ **FIXED (v1.3.0)**: Production deployment - separate docker-compose.prod.yml ohne Code-Mounts
 - ✅ **FIXED (v1.2.5)**: Script self-update - automatische Script-Updates vor Deployment
 - ✅ **FIXED (v1.2.4)**: Deployment script - automatisches git pull für Updates
@@ -191,6 +192,17 @@ b0b26f2 - fix: Docker health check - use curl instead of requests module
 ```
 
 **Notable**:
+- 🔥 **CRITICAL FIX #8**: Docker rebuild enforcement - FINALLY solves StorageClient error!
+  - **Root Cause**: `docker-compose up -d` doesn't rebuild existing images
+  - **Problem**: After git pull, new code on VM but containers still use OLD cached image
+  - **Solution**: Added `docker-compose build --no-cache` BEFORE `up -d`
+  - **Impact**: Forces rebuild of api/celery/frontend with latest code from git repo
+  - **Auto-Fix**: Added detection for NameError (StorageClient) with auto-rebuild
+  - **Fix Chain Complete**:
+    - Fix #5: `git pull` (gets latest code to VM)
+    - Fix #6: script self-update (ensures script has git pull)
+    - Fix #7: `docker-compose.prod.yml` (no volume mounts override)
+    - Fix #8: `docker build --no-cache` (ensures container uses latest code) ✅
 - 🔥 **CRITICAL FIX #7**: Production deployment configuration - solves persistent StorageClient error!
   - **Root Cause**: Docker volume mounts (`./api:/app/api`) override container code with VM filesystem
   - **Problem**: VM had old `documents.py` with `StorageClient()` at line 30, not in git repo
