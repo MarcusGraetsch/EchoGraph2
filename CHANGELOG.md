@@ -8,6 +8,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **CRITICAL**: Docker rebuild enforcement - forces fresh image build to prevent cached old code
+  - Root cause: `docker-compose up -d` doesn't rebuild if image already exists, just starts containers
+  - Problem: After git pull, new code is on VM but Docker still uses OLD cached image from previous build
+  - Git repo line 30 of `api/routers/documents.py`: `file: UploadFile = File(...)` (correct, no StorageClient)
+  - But container still had line 30: `storage_client = StorageClient()` (old cached code)
+  - Result: Even with docker-compose.prod.yml (Fix #7), StorageClient error persisted
+  - Solution: Added `docker-compose build --no-cache api celery-worker frontend` BEFORE `docker-compose up -d`
+  - This forces Docker to:
+    1. Ignore existing cached image layers
+    2. Rebuild from scratch using code from git repo (after git pull)
+    3. Create fresh image with latest code
+  - Added intelligent error detection:
+    - Detects NameError (specifically StorageClient pattern)
+    - Shows clear explanation of root cause (old cached code)
+    - Automatically triggers rebuild with --no-cache
+  - **Complete Fix Chain** (all 4 pieces required):
+    1. Fix #5 (git pull): Gets latest code to VM filesystem
+    2. Fix #6 (script self-update): Ensures deployment script itself has git pull
+    3. Fix #7 (docker-compose.prod.yml): Removes volume mounts that override container code
+    4. Fix #8 (docker build --no-cache): Ensures container built with latest code, not cached ✅
+  - Without ALL 4 fixes, StorageClient error would persist
+  - Files changed: `scripts/deploy-contabo.sh` (+32 lines)
+  - Commit: c942eb9
+
 - **CRITICAL**: Production deployment configuration - separate compose file without code volume mounts
   - Root cause: Docker volume mounts (`./api:/app/api`, `./ingestion:/app/ingestion`, `./processing:/app/processing`) override container code with VM filesystem
   - Problem: All previous 6 critical fixes (git pull, script self-update, etc.) couldn't help because volumes ALWAYS use VM files
