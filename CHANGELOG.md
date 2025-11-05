@@ -8,6 +8,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **CRITICAL**: Production deployment configuration - separate compose file without code volume mounts
+  - Root cause: Docker volume mounts (`./api:/app/api`, `./ingestion:/app/ingestion`, `./processing:/app/processing`) override container code with VM filesystem
+  - Problem: All previous 6 critical fixes (git pull, script self-update, etc.) couldn't help because volumes ALWAYS use VM files
+  - VM had old `documents.py` with `storage_client = StorageClient()` at line 30, which doesn't exist in git repo
+  - Resulted in persistent `NameError: name 'StorageClient' is not defined` that survived all previous fixes
+  - Created new `docker-compose.prod.yml` specifically for production deployments:
+    - Removed code volume mounts from `api` and `celery-worker` services
+    - Only mounts `./data:/app/data` for data persistence
+    - Code is now read from Docker image (built via Dockerfile), not VM filesystem
+  - Updated `scripts/deploy-contabo.sh` to use production compose file:
+    - Changed `COMPOSE_CMD` to include `-f docker-compose.prod.yml`
+    - Added informational message about production mode
+    - Updated help text to explain dev vs prod configurations
+  - Development vs Production:
+    - **Dev** (`docker-compose.yml`): Mounts all code directories for hot-reload during development
+    - **Prod** (`docker-compose.prod.yml`): No code mounts, uses immutable code from Docker image
+  - This architectural fix solves the fundamental mismatch between development and production environments
+  - Note: `docker-compose.yml` remains unchanged for local development with hot-reload
+  - Files changed: new `docker-compose.prod.yml`, modified `scripts/deploy-contabo.sh`
+
 - **CRITICAL**: Fixed deployment script self-update and log file display
   - Root cause: VM runs old script version without git pull functionality (chicken-and-egg problem)
   - Log file path display was broken after `exec tee` redirection

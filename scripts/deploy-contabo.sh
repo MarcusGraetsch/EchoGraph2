@@ -566,15 +566,20 @@ fi
 # Step 8: Start Services
 print_header "Step 8: Starting Docker Services"
 
+# PRODUCTION MODE: Use docker-compose.prod.yml without code volume mounts
+# This ensures containers use code from Docker images, not VM filesystem
+# Development mode (docker-compose.yml) uses volume mounts for hot-reload
+print_info "Using production configuration (docker-compose.prod.yml)"
+
 # Check if we can run docker without sudo
 if docker ps >/dev/null 2>&1; then
     print_success "Docker permissions OK"
     DOCKER_CMD="docker"
-    COMPOSE_CMD="docker-compose"
+    COMPOSE_CMD="docker-compose -f docker-compose.prod.yml"
 else
     print_warning "Docker group changes not yet active, using sudo for this session"
     DOCKER_CMD="sudo docker"
-    COMPOSE_CMD="sudo docker-compose"
+    COMPOSE_CMD="sudo docker-compose -f docker-compose.prod.yml"
 fi
 
 # Stop any existing services and clean volumes for fresh start
@@ -992,6 +997,9 @@ echo "  Stop services:   ${COMPOSE_CMD} down"
 echo "  Start services:  ${COMPOSE_CMD} up -d"
 echo "  Restart service: ${COMPOSE_CMD} restart [service]"
 echo "  Service status:  ${COMPOSE_CMD} ps"
+echo ""
+echo "  Note: Production mode uses docker-compose.prod.yml"
+echo "        For development with hot-reload, use docker-compose.yml"
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "  Next Steps:"
