@@ -136,6 +136,14 @@ if [ -f "docker-compose.yml" ] && [ -d ".git" ] && grep -q "echograph" docker-co
     print_success "Already in EchoGraph2 repository"
     REPO_DIR=$(pwd)
 
+    # Pull latest changes
+    print_info "Pulling latest changes from repository..."
+    if git pull origin $(git branch --show-current) 2>&1 | grep -v "Already up to date"; then
+        print_success "Repository updated to latest version"
+    else
+        print_success "Repository already up to date"
+    fi
+
     # Check if there's a nested clone and warn about it
     if [ -d "EchoGraph2" ]; then
         print_warning "Found nested EchoGraph2 directory (from previous run)"
@@ -151,6 +159,15 @@ elif [ -d "EchoGraph2" ]; then
     if [[ $REPLY =~ ^[Yy]$ ]]; then
         cd EchoGraph2
         REPO_DIR=$(pwd)
+
+        # Pull latest changes
+        print_info "Pulling latest changes from repository..."
+        if git pull origin $(git branch --show-current) 2>&1 | grep -v "Already up to date"; then
+            print_success "Repository updated to latest version"
+        else
+            print_success "Repository already up to date"
+        fi
+
         print_success "Using existing repository"
     else
         rm -rf EchoGraph2
