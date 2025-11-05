@@ -8,6 +8,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **CRITICAL**: Fixed deployment script self-update and log file display
+  - Root cause: VM runs old script version without git pull functionality (chicken-and-egg problem)
+  - Log file path display was broken after `exec tee` redirection
+  - Added self-update mechanism at script start (before any operations):
+    - Compares local vs remote git refs via `git fetch`
+    - Automatically pulls updates if available
+    - Re-executes itself with `--no-update` flag to prevent loops
+    - Ensures script always runs latest version
+  - Fixed log file path display:
+    - Calculate paths BEFORE `exec tee` redirect
+    - Store both `LOGFILE` (full path) and `LOGFILE_NAME` (basename)
+    - Display both at end: filename for quick reference, full path for absolute location
+  - This solves persistent StorageClient errors by ensuring VM always has latest code
+  - Commit: 36cce23
+
 - **CRITICAL**: Fixed deployment script not pulling latest code updates
   - Root cause: Deployment script clones repo on first run but never pulls updates on subsequent runs
   - Docker volume mounts (`./api:/app/api`) override container code with VM filesystem
