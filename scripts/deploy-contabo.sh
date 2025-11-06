@@ -935,46 +935,8 @@ if [ "$services_ok" = false ]; then
     fi
 fi
 
-# Step 10: Initialize Keycloak
-print_header "Step 10: Initialize Keycloak Realm"
-print_info "Configuring Keycloak with EchoGraph realm..."
-
-if [ -f "$REPO_DIR/keycloak/init-keycloak.sh" ]; then
-    export KEYCLOAK_SERVER_URL="http://localhost:8080"
-    export KEYCLOAK_ADMIN
-    export KEYCLOAK_ADMIN_PASSWORD
-    export KEYCLOAK_REALM
-    export KEYCLOAK_CLIENT_ID
-    export KEYCLOAK_CLIENT_SECRET
-
-    print_info "Running Keycloak initialization script (timeout: 5 minutes)..."
-
-    # Run with timeout to prevent hanging indefinitely
-    timeout 300 bash "$REPO_DIR/keycloak/init-keycloak.sh"
-    EXIT_CODE=$?
-
-    if [ $EXIT_CODE -eq 0 ]; then
-        print_success "Keycloak realm configured successfully"
-    elif [ $EXIT_CODE -eq 124 ]; then
-        print_error "Keycloak initialization timed out after 5 minutes"
-        echo "  This usually means Keycloak is taking too long to respond."
-        echo "  You can run it manually later with:"
-        echo "  cd $REPO_DIR && ./keycloak/init-keycloak.sh"
-        echo "  Or check Keycloak logs: ${COMPOSE_CMD} logs keycloak"
-    else
-        print_warning "Keycloak initialization script failed (exit code: $EXIT_CODE)"
-        echo "  You can run it manually later with:"
-        echo "  cd $REPO_DIR && ./keycloak/init-keycloak.sh"
-        echo "  Or check Keycloak logs: ${COMPOSE_CMD} logs keycloak"
-    fi
-else
-    print_warning "Keycloak initialization script not found"
-    echo "  Skipping automatic realm configuration"
-    echo "  You'll need to configure Keycloak manually"
-fi
-
-# Step 11: Test API Endpoint
-print_header "Step 11: Testing API Endpoints"
+# Step 10: Test API Endpoints
+print_header "Step 10: Testing API Endpoints"
 sleep 5
 
 # Test API health endpoint
@@ -1147,4 +1109,49 @@ echo "  View log:  cat ${LOGFILE_NAME}"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 print_success "Setup complete! Visit http://$SERVER_IP:3000 to get started."
+echo ""
+
+# Step 11: Initialize Keycloak (done last to not block deployment completion)
+print_header "Step 11: Initialize Keycloak Realm (Optional)"
+print_info "Now attempting to configure Keycloak realm..."
+print_warning "Note: If this step hangs, you can press Ctrl+C safely."
+print_info "      All services are already running and accessible."
+echo ""
+
+if [ -f "$REPO_DIR/keycloak/init-keycloak.sh" ]; then
+    export KEYCLOAK_SERVER_URL="http://localhost:8080"
+    export KEYCLOAK_ADMIN
+    export KEYCLOAK_ADMIN_PASSWORD
+    export KEYCLOAK_REALM
+    export KEYCLOAK_CLIENT_ID
+    export KEYCLOAK_CLIENT_SECRET
+
+    print_info "Running Keycloak initialization script (timeout: 5 minutes)..."
+
+    # Run in background with timeout to prevent hanging deployment
+    (
+        timeout 300 bash "$REPO_DIR/keycloak/init-keycloak.sh"
+        EXIT_CODE=$?
+
+        echo ""
+        if [ $EXIT_CODE -eq 0 ]; then
+            print_success "Keycloak realm configured successfully!"
+        elif [ $EXIT_CODE -eq 124 ]; then
+            print_error "Keycloak initialization timed out after 5 minutes"
+            echo "  You can run it manually later with:"
+            echo "  cd $REPO_DIR && ./keycloak/init-keycloak.sh"
+        else
+            print_warning "Keycloak initialization failed (exit code: $EXIT_CODE)"
+            echo "  You can run it manually later with:"
+            echo "  cd $REPO_DIR && ./keycloak/init-keycloak.sh"
+        fi
+    )
+else
+    print_warning "Keycloak initialization script not found"
+    echo "  You can configure Keycloak manually via the admin console:"
+    echo "  http://$SERVER_IP:8080"
+fi
+
+echo ""
+print_success "All deployment steps completed!"
 echo ""
