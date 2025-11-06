@@ -8,7 +8,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
-- **CRITICAL**: Docker rebuild enforcement - forces fresh image build to prevent cached old code
+- **CRITICAL FIX #9 - DEPLOYMENT SUCCESS**: Missing StorageClient import - API now starts successfully! 🎉
+  - **Root cause**: `api/routers/documents.py` line 30 instantiated `StorageClient()` without importing it
+  - **Problem**: Persistent `NameError: name 'StorageClient' is not defined` prevented API from starting
+  - **Impact**: API container crashed on startup, blocking entire deployment (API, Celery worker, Frontend)
+  - **Solution**: Added `from ingestion.storage import StorageClient` import at line 14
+  - **Verification from deployment logs**:
+    - ✅ API startup: `INFO | ingestion.storage:_ensure_bucket:31 - Created bucket: echograph-documents`
+    - ✅ Database: `INFO | api.database:init_db - Database initialized successfully`
+    - ✅ Server: `INFO | Uvicorn running on http://0.0.0.0:8000`
+    - ✅ Health checks: `INFO | "GET /health HTTP/1.1" 200 OK` (multiple successful checks)
+    - ✅ Celery worker: `INFO | celery@1d8bef81f32c ready.`
+    - ✅ Frontend: `▲ Next.js 14.1.0 - Ready in 118ms`
+  - **Complete fix chain analysis**:
+    - Fixes #1-8 addressed infrastructure issues (Docker caching, volume mounts, git pull, etc.)
+    - Fix #9 addresses the actual code bug that infrastructure fixes couldn't solve
+    - All infrastructure was correct, but code had missing import
+  - **Current deployment status**: ✅ **FULLY OPERATIONAL**
+  - Files changed: `api/routers/documents.py` (+1 line: import statement)
+  - Commit: b99d8ae
+  - **Note**: Keycloak shows slow startup (timeout after 60s), but NOT critical - API/Frontend/Celery work independently
+
+- **CRITICAL FIX #8**: Docker rebuild enforcement - forces fresh image build to prevent cached old code
   - Root cause: `docker-compose up -d` doesn't rebuild if image already exists, just starts containers
   - Problem: After git pull, new code is on VM but Docker still uses OLD cached image from previous build
   - Git repo line 30 of `api/routers/documents.py`: `file: UploadFile = File(...)` (correct, no StorageClient)

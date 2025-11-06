@@ -21,14 +21,15 @@ echo "Keycloak user: $KEYCLOAK_DB_USERNAME"
 echo "Creating Keycloak database and user..."
 
 psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-EOSQL
-    -- Create keycloak user if not exists
+    -- Create keycloak user if not exists, or update password if exists
     DO \$\$
     BEGIN
         IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '$KEYCLOAK_DB_USERNAME') THEN
             CREATE USER $KEYCLOAK_DB_USERNAME WITH PASSWORD '$KEYCLOAK_DB_PASS';
             RAISE NOTICE 'Created user: $KEYCLOAK_DB_USERNAME';
         ELSE
-            RAISE NOTICE 'User already exists: $KEYCLOAK_DB_USERNAME';
+            ALTER USER $KEYCLOAK_DB_USERNAME WITH PASSWORD '$KEYCLOAK_DB_PASS';
+            RAISE NOTICE 'Updated password for user: $KEYCLOAK_DB_USERNAME';
         END IF;
     END
     \$\$;

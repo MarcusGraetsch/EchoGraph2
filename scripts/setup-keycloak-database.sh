@@ -87,14 +87,15 @@ done
 print_info "Creating Keycloak database and user..."
 
 $DOCKER_COMPOSE exec -T postgres psql -U $POSTGRES_USER -d postgres <<-EOSQL
-    -- Create keycloak user if not exists
+    -- Create keycloak user if not exists, or update password if exists
     DO \$\$
     BEGIN
         IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '$KEYCLOAK_DB_USER') THEN
             CREATE USER $KEYCLOAK_DB_USER WITH PASSWORD '$KEYCLOAK_DB_PASSWORD';
             RAISE NOTICE 'User $KEYCLOAK_DB_USER created';
         ELSE
-            RAISE NOTICE 'User $KEYCLOAK_DB_USER already exists';
+            ALTER USER $KEYCLOAK_DB_USER WITH PASSWORD '$KEYCLOAK_DB_PASSWORD';
+            RAISE NOTICE 'User $KEYCLOAK_DB_USER password updated';
         END IF;
     END
     \$\$;
@@ -127,5 +128,16 @@ fi
 
 print_success "✓ Keycloak database setup complete!"
 print_info ""
-print_info "You can now restart Keycloak:"
-print_info "  $DOCKER_COMPOSE restart keycloak"
+print_info "Restarting Keycloak to apply changes..."
+if $DOCKER_COMPOSE restart keycloak > /dev/null 2>&1; then
+    print_success "Keycloak restarted successfully"
+    print_info ""
+    print_info "Waiting for Keycloak to start (this may take 1-2 minutes)..."
+    sleep 5
+    print_info "Check Keycloak logs with:"
+    print_info "  $DOCKER_COMPOSE logs -f keycloak"
+else
+    print_warning "Failed to restart Keycloak automatically"
+    print_info "Please restart manually:"
+    print_info "  $DOCKER_COMPOSE restart keycloak"
+fi
