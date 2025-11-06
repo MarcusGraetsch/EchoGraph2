@@ -232,8 +232,21 @@ if [ ! -f ".env" ]; then
     # Get server IP
     SERVER_IP=$(curl -s ifconfig.me)
 
+    # Check if it's an IPv6 address (contains colons)
+    # IPv6 addresses need to be wrapped in brackets for URLs
+    if echo "$SERVER_IP" | grep -q ':'; then
+        print_info "Detected IPv6 address: $SERVER_IP"
+        SERVER_IP_URL="[$SERVER_IP]"  # Wrap in brackets for URLs
+    else
+        print_info "Detected IPv4 address: $SERVER_IP"
+        SERVER_IP_URL="$SERVER_IP"    # IPv4 doesn't need brackets
+    fi
+
     # Create comprehensive .env file
     cat > .env << EOF
+# Server Configuration
+SERVER_IP=$SERVER_IP
+
 # Database Configuration
 POSTGRES_USER=echograph
 POSTGRES_PASSWORD=$POSTGRES_PASSWORD
@@ -248,16 +261,16 @@ MINIO_BUCKET=echograph-documents
 MINIO_USE_SSL=false
 
 # API Configuration
-API_HOST=http://$SERVER_IP:8000
+API_HOST=http://${SERVER_IP_URL}:8000
 API_PORT=8000
 API_SECRET_KEY=$API_SECRET
 API_ALGORITHM=HS256
 API_ACCESS_TOKEN_EXPIRE_MINUTES=30
 
 # Frontend Configuration
-WS_HOST=ws://$SERVER_IP:8000
-NEXT_PUBLIC_API_URL=http://$SERVER_IP:8000
-NEXT_PUBLIC_WS_URL=ws://$SERVER_IP:8000
+WS_HOST=ws://${SERVER_IP_URL}:8000
+NEXT_PUBLIC_API_URL=http://${SERVER_IP_URL}:8000
+NEXT_PUBLIC_WS_URL=ws://${SERVER_IP_URL}:8000
 
 # n8n Configuration
 N8N_HOST=$SERVER_IP
@@ -277,7 +290,7 @@ KEYCLOAK_CLIENT_ID=echograph-api
 KEYCLOAK_CLIENT_SECRET=$KEYCLOAK_CLIENT_SECRET
 KEYCLOAK_FRONTEND_CLIENT_ID=echograph-frontend
 KEYCLOAK_SERVER_URL=http://keycloak:8080
-KEYCLOAK_PUBLIC_URL=http://$SERVER_IP:8080
+KEYCLOAK_PUBLIC_URL=http://${SERVER_IP_URL}:8080
 
 # Redis / Celery Configuration
 REDIS_URL=redis://redis:6379/0
@@ -304,7 +317,7 @@ LOG_LEVEL=INFO
 ENABLE_METRICS=true
 
 # Security
-ALLOWED_ORIGINS=http://$SERVER_IP:3000,http://$SERVER_IP:8000
+ALLOWED_ORIGINS=http://${SERVER_IP_URL}:3000,http://${SERVER_IP_URL}:8000
 CORS_ALLOW_CREDENTIALS=true
 EOF
 
@@ -321,6 +334,9 @@ EOF
     echo "  Keycloak DB Password:    $KEYCLOAK_DB_PASSWORD"
     echo "  API Secret Key:          $API_SECRET"
     echo "  Server IP:               $SERVER_IP"
+    if echo "$SERVER_IP" | grep -q ':'; then
+        echo "  ℹ️  IPv6 detected - URLs use: [$SERVER_IP]:port"
+    fi
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo ""
     print_warning "IMPORTANT: Save these credentials securely!"
@@ -396,7 +412,17 @@ EOF
     fi
 else
     print_warning ".env file already exists, skipping"
-    SERVER_IP=$(grep "NEXT_PUBLIC_API_URL" .env | cut -d'/' -f3 | cut -d':' -f1 || curl -s ifconfig.me)
+    # Read SERVER_IP from existing .env, fallback to fetching it
+    SERVER_IP=$(grep "^SERVER_IP=" .env | cut -d'=' -f2 || curl -s ifconfig.me)
+
+    # Check if it's IPv6 and set SERVER_IP_URL accordingly
+    if echo "$SERVER_IP" | grep -q ':'; then
+        print_info "Detected IPv6 address from .env: $SERVER_IP"
+        SERVER_IP_URL="[$SERVER_IP]"
+    else
+        print_info "Detected IPv4 address from .env: $SERVER_IP"
+        SERVER_IP_URL="$SERVER_IP"
+    fi
 fi
 
 # Step 7: Create Data Directories
@@ -967,21 +993,21 @@ echo "                    🌐 ALL SERVICE URLs                         "
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 echo "  📱 User Interfaces:"
-echo "     Frontend (Main App):    http://$SERVER_IP:3000"
-echo "     Keycloak (Auth):        http://$SERVER_IP:8080"
-echo "     n8n (Workflows):        http://$SERVER_IP:5678"
-echo "     MinIO Console (Files):  http://$SERVER_IP:9001"
+echo "     Frontend (Main App):    http://${SERVER_IP_URL}:3000"
+echo "     Keycloak (Auth):        http://${SERVER_IP_URL}:8080"
+echo "     n8n (Workflows):        http://${SERVER_IP_URL}:5678"
+echo "     MinIO Console (Files):  http://${SERVER_IP_URL}:9001"
 echo ""
 echo "  🔧 API & Services:"
-echo "     API Documentation:      http://$SERVER_IP:8000/docs"
-echo "     API Health Check:       http://$SERVER_IP:8000/health"
-echo "     API Base URL:           http://$SERVER_IP:8000"
+echo "     API Documentation:      http://${SERVER_IP_URL}:8000/docs"
+echo "     API Health Check:       http://${SERVER_IP_URL}:8000/health"
+echo "     API Base URL:           http://${SERVER_IP_URL}:8000"
 echo ""
 echo "  💾 Database & Storage:"
 echo "     PostgreSQL:             postgres:5432 (internal only)"
 echo "     Redis:                  redis:6379 (internal only)"
 echo "     Qdrant (Vectors):       localhost:6333 (internal only)"
-echo "     MinIO S3 API:           http://$SERVER_IP:9000"
+echo "     MinIO S3 API:           http://${SERVER_IP_URL}:9000"
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
@@ -1017,7 +1043,7 @@ echo ""
 echo "  📝 HOW TO CHANGE PASSWORDS:"
 echo ""
 echo "  1️⃣  KEYCLOAK (Authentication System):"
-echo "     • Login: http://$SERVER_IP:8080"
+echo "     • Login: http://${SERVER_IP_URL}:8080"
 echo "     • Click 'Administration Console'"
 echo "     • Login with admin credentials above"
 echo "     • Click 'admin' (top right) → 'Manage account' → 'Password'"
@@ -1031,7 +1057,7 @@ echo "     • Change: N8N_BASIC_AUTH_PASSWORD=<new_password>"
 echo "     • Restart: cd ~/EchoGraph2 && ${COMPOSE_CMD} restart n8n"
 echo ""
 echo "  3️⃣  MinIO (File Storage):"
-echo "     • Login: http://$SERVER_IP:9001"
+echo "     • Login: http://${SERVER_IP_URL}:9001"
 echo "     • Go to 'Identity' → 'Users' → 'minioadmin'"
 echo "     • Change password OR create new admin user"
 echo "     • Update .env:"
@@ -1089,8 +1115,8 @@ echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "  Next Steps:"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  1. Test upload: Visit http://$SERVER_IP:3000/dashboard"
-echo "  2. Review API:  Visit http://$SERVER_IP:8000/docs"
+echo "  1. Test upload: Visit http://${SERVER_IP_URL}:3000/dashboard"
+echo "  2. Review API:  Visit http://${SERVER_IP_URL}:8000/docs"
 echo "  3. Set up Nginx reverse proxy (see docs/deployment-contabo.md)"
 echo "  4. Install SSL certificate with Let's Encrypt"
 echo "  5. Configure backups"
@@ -1108,7 +1134,7 @@ echo "  Full path: ${LOGFILE}"
 echo "  View log:  cat ${LOGFILE_NAME}"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
-print_success "Setup complete! Visit http://$SERVER_IP:3000 to get started."
+print_success "Setup complete! Visit http://${SERVER_IP_URL}:3000 to get started."
 echo ""
 
 # Step 11: Initialize Keycloak (done last to not block deployment completion)
@@ -1149,7 +1175,7 @@ if [ -f "$REPO_DIR/keycloak/init-keycloak.sh" ]; then
 else
     print_warning "Keycloak initialization script not found"
     echo "  You can configure Keycloak manually via the admin console:"
-    echo "  http://$SERVER_IP:8080"
+    echo "  http://${SERVER_IP_URL}:8080"
 fi
 
 echo ""
