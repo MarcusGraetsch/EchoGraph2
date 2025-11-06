@@ -947,15 +947,25 @@ if [ -f "$REPO_DIR/keycloak/init-keycloak.sh" ]; then
     export KEYCLOAK_CLIENT_ID
     export KEYCLOAK_CLIENT_SECRET
 
-    print_info "Running Keycloak initialization script..."
-    bash "$REPO_DIR/keycloak/init-keycloak.sh"
+    print_info "Running Keycloak initialization script (timeout: 5 minutes)..."
 
-    if [ $? -eq 0 ]; then
+    # Run with timeout to prevent hanging indefinitely
+    timeout 300 bash "$REPO_DIR/keycloak/init-keycloak.sh"
+    EXIT_CODE=$?
+
+    if [ $EXIT_CODE -eq 0 ]; then
         print_success "Keycloak realm configured successfully"
-    else
-        print_warning "Keycloak initialization script failed"
+    elif [ $EXIT_CODE -eq 124 ]; then
+        print_error "Keycloak initialization timed out after 5 minutes"
+        echo "  This usually means Keycloak is taking too long to respond."
         echo "  You can run it manually later with:"
         echo "  cd $REPO_DIR && ./keycloak/init-keycloak.sh"
+        echo "  Or check Keycloak logs: ${COMPOSE_CMD} logs keycloak"
+    else
+        print_warning "Keycloak initialization script failed (exit code: $EXIT_CODE)"
+        echo "  You can run it manually later with:"
+        echo "  cd $REPO_DIR && ./keycloak/init-keycloak.sh"
+        echo "  Or check Keycloak logs: ${COMPOSE_CMD} logs keycloak"
     fi
 else
     print_warning "Keycloak initialization script not found"
