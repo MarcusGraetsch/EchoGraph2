@@ -8,13 +8,13 @@
 
 | Property | Value |
 |----------|-------|
-| **Document Version** | 1.4.0 |
+| **Document Version** | 1.5.0 |
 | **Created** | 2025-11-04 |
-| **Last Updated** | 2025-11-05 |
+| **Last Updated** | 2025-11-06 |
 | **Analysis Method** | Automated repository exploration via Claude Code |
 | **Repository** | https://github.com/MarcusGraetsch/EchoGraph2 |
-| **Branch** | `claude/github-repo-setup-011CUnZNkLAYPHSoRcpsLfa6` |
-| **Latest Commit** | `c942eb9` - Docker rebuild fix (StorageClient complete) |
+| **Branch** | `claude/fix-deployment-issues-011CUrgoxnnnE4r2nGLJLLyW` |
+| **Latest Commit** | `b99d8ae` - StorageClient import fix (deployment SUCCESSFUL) |
 | **Project Status** | Alpha v0.1.0 - Active Development |
 | **Total Lines** | ~1900 lines |
 
@@ -55,6 +55,7 @@
 - ⚠️ **Security First**: Alle Default-Passwörter MÜSSEN in Production geändert werden
 - 🔴 **Kritische TODOs**: Celery Tasks, MinIO Integration, Semantic Search
 - 📚 **Weitere Docs**: Siehe `/docs` Directory für detaillierte Guides
+- ✅ **FIXED (v1.5.0)**: StorageClient import - API startet jetzt erfolgreich, MinIO Integration funktioniert
 - ✅ **FIXED (v1.4.0)**: Docker build - erzwingt Rebuild mit --no-cache für frischen Code
 - ✅ **FIXED (v1.3.0)**: Production deployment - separate docker-compose.prod.yml ohne Code-Mounts
 - ✅ **FIXED (v1.2.5)**: Script self-update - automatische Script-Updates vor Deployment
@@ -63,7 +64,7 @@
 - ✅ **FIXED (v1.2.2)**: Docker health check - jetzt mit curl statt requests module
 - ✅ **FIXED (v1.2.1)**: Docker COPY Syntax - shell redirection entfernt
 - ✅ **FIXED (v1.2.0)**: ModuleNotFoundError für ingestion/processing modules
-- 🐛 **Known Issues**: Keycloak HTTP-Konfiguration (keine HTTPS) - Security Issue für Production!
+- 🐛 **Known Issues**: Keycloak slow startup (not critical - API/Frontend/Celery work independently)
 
 #### Navigation Shortcuts:
 
@@ -179,20 +180,27 @@ git log --oneline -5
 ## 🚀 Recent Changes (Last 10 Commits)
 
 ```
+b99d8ae - fix: add missing StorageClient import in documents.py
+7588acb - Merge pull request #55
+36b70ee - fix: add emergency force-rebuild script to fix StorageClient error
+c942eb9 - fix: CRITICAL #8 - force Docker rebuild to prevent cached old code
+205e443 - fix: CRITICAL #7 - production deployment config to fix persistent StorageClient error
 36cce23 - fix: add script self-update and fix log file path display
 5fda276 - docs: update documentation for v1.2.4
 95e6250 - fix: add automatic git pull to deployment script for existing repositories
 ca67f82 - docs: update documentation for v1.2.3
 4daa440 - fix: convert all API imports to relative imports for package structure
-b0b26f2 - fix: Docker health check - use curl instead of requests module
-3d0c9df - fix: remove shell redirection from Docker COPY commands
-40fe227 - fix: CRITICAL - resolve ModuleNotFoundError for ingestion/processing
-120c93a - docs: update AI_DEVELOPMENT_PROMPT.md to v1.1.0
-607531f - docs: add comprehensive AI development prompt
 ```
 
 **Notable**:
-- 🔥 **CRITICAL FIX #8**: Docker rebuild enforcement - FINALLY solves StorageClient error!
+- 🎉 **CRITICAL FIX #9 - DEPLOYMENT SUCCESS**: StorageClient import added - API now starts successfully!
+  - **Root Cause**: `api/routers/documents.py` line 30 used `StorageClient()` without importing it
+  - **Problem**: Persistent `NameError: name 'StorageClient' is not defined` during deployment
+  - **Solution**: Added `from ingestion.storage import StorageClient` to imports
+  - **Impact**: API starts successfully, MinIO bucket created, deployment WORKS!
+  - **Verification**: API logs show "Created bucket: echograph-documents", all health checks green
+  - **Complete Fix Chain**: Fixes #1-8 addressed infrastructure, Fix #9 fixed the actual code bug
+- 🔥 **CRITICAL FIX #8**: Docker rebuild enforcement - forces fresh code in containers
   - **Root Cause**: `docker-compose up -d` doesn't rebuild existing images
   - **Problem**: After git pull, new code on VM but containers still use OLD cached image
   - **Solution**: Added `docker-compose build --no-cache` BEFORE `up -d`

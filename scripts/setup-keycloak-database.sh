@@ -128,5 +128,16 @@ fi
 
 print_success "✓ Keycloak database setup complete!"
 print_info ""
-print_info "You can now restart Keycloak:"
-print_info "  $DOCKER_COMPOSE restart keycloak"
+print_info "Restarting Keycloak to apply changes..."
+if $DOCKER_COMPOSE restart keycloak > /dev/null 2>&1; then
+    print_success "Keycloak restarted successfully"
+    print_info ""
+    print_info "Waiting for Keycloak to start (this may take 1-2 minutes)..."
+    sleep 5
+    print_info "Check Keycloak logs with:"
+    print_info "  $DOCKER_COMPOSE logs -f keycloak"
+else
+    print_warning "Failed to restart Keycloak automatically"
+    print_info "Please restart manually:"
+    print_info "  $DOCKER_COMPOSE restart keycloak"
+fi
