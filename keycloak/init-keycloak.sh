@@ -66,7 +66,7 @@ KEYCLOAK_READY=false
 
 while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
     # Try to access the master realm endpoint (more reliable than /health/ready)
-    HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 "$KEYCLOAK_URL/realms/master" 2>/dev/null || echo "000")
+    HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 --connect-timeout 3 "$KEYCLOAK_URL/realms/master" 2>/dev/null || echo "000")
 
     # 200, 302, 404, or even 403 means Keycloak is responding
     if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "302" ] || [ "$HTTP_CODE" = "404" ] || [ "$HTTP_CODE" = "403" ]; then
@@ -102,7 +102,7 @@ fi
 
 print_info "Authenticating as Keycloak admin..."
 
-TOKEN_RESPONSE=$(curl -sf --max-time 10 -X POST \
+TOKEN_RESPONSE=$(timeout 15 curl -sf --max-time 10 --connect-timeout 5 -X POST \
     "$KEYCLOAK_URL/realms/master/protocol/openid-connect/token" \
     -H "Content-Type: application/x-www-form-urlencoded" \
     -d "username=$KEYCLOAK_ADMIN" \
@@ -110,8 +110,14 @@ TOKEN_RESPONSE=$(curl -sf --max-time 10 -X POST \
     -d "grant_type=password" \
     -d "client_id=admin-cli" 2>/dev/null)
 
-if [ $? -ne 0 ]; then
-    print_error "Failed to authenticate with Keycloak"
+TOKEN_EXIT=$?
+
+if [ $TOKEN_EXIT -ne 0 ]; then
+    if [ $TOKEN_EXIT -eq 124 ]; then
+        print_error "Timeout while authenticating with Keycloak"
+    else
+        print_error "Failed to authenticate with Keycloak (exit code: $TOKEN_EXIT)"
+    fi
     exit 1
 fi
 
@@ -130,14 +136,21 @@ print_success "Authenticated successfully"
 
 print_info "Checking if realm '$REALM_NAME' exists..."
 
-REALM_EXISTS=$(curl -sf --max-time 10 -X GET \
+# Use timeout command to ensure curl doesn't hang
+REALM_EXISTS=$(timeout 10 curl -sf --max-time 10 --connect-timeout 5 -X GET \
     "$KEYCLOAK_URL/admin/realms/$REALM_NAME" \
     -H "Authorization: Bearer $ACCESS_TOKEN" \
     -H "Content-Type: application/json" 2>/dev/null)
 
-if [ $? -eq 0 ] && [ -n "$REALM_EXISTS" ]; then
+CURL_EXIT=$?
+
+if [ $CURL_EXIT -eq 0 ] && [ -n "$REALM_EXISTS" ]; then
     print_warning "Realm '$REALM_NAME' already exists - skipping import"
     REALM_CREATED=false
+elif [ $CURL_EXIT -eq 124 ]; then
+    print_error "Timeout while checking realm existence"
+    print_info "Assuming realm does not exist - will attempt to create it"
+    REALM_CREATED=true
 else
     print_info "Realm does not exist - will create it"
     REALM_CREATED=true
@@ -157,7 +170,7 @@ if [ "$REALM_CREATED" = true ]; then
         exit 1
     fi
 
-    IMPORT_RESPONSE=$(curl -sf --max-time 30 -X POST \
+    IMPORT_RESPONSE=$(timeout 40 curl -sf --max-time 30 --connect-timeout 10 -X POST \
         "$KEYCLOAK_URL/admin/realms" \
         -H "Authorization: Bearer $ACCESS_TOKEN" \
         -H "Content-Type: application/json" \
@@ -180,7 +193,7 @@ fi
 print_info "Configuring client secret for '$CLIENT_ID'..."
 
 # Get the client's internal ID
-CLIENT_UUID=$(curl -sf --max-time 10 -X GET \
+CLIENT_UUID=$(timeout 15 curl -sf --max-time 10 --connect-timeout 5 -X GET \
     "$KEYCLOAK_URL/admin/realms/$REALM_NAME/clients?clientId=$CLIENT_ID" \
     -H "Authorization: Bearer $ACCESS_TOKEN" \
     -H "Content-Type: application/json" 2>/dev/null | \
@@ -194,7 +207,7 @@ fi
 print_info "Found client UUID: $CLIENT_UUID"
 
 # Update client secret
-UPDATE_RESPONSE=$(curl -sf --max-time 10 -X POST \
+UPDATE_RESPONSE=$(curl -sf --max-time 10 --connect-timeout 5 -X POST \
     "$KEYCLOAK_URL/admin/realms/$REALM_NAME/clients/$CLIENT_UUID/client-secret" \
     -H "Authorization: Bearer $ACCESS_TOKEN" \
     -H "Content-Type: application/json" \
@@ -203,7 +216,7 @@ UPDATE_RESPONSE=$(curl -sf --max-time 10 -X POST \
 if [ $? -ne 0 ]; then
     print_warning "Could not set custom client secret - using generated one"
     # Get the generated secret
-    SECRET_RESPONSE=$(curl -sf --max-time 10 -X GET \
+    SECRET_RESPONSE=$(curl -sf --max-time 10 --connect-timeout 5 -X GET \
         "$KEYCLOAK_URL/admin/realms/$REALM_NAME/clients/$CLIENT_UUID/client-secret" \
         -H "Authorization: Bearer $ACCESS_TOKEN" \
         -H "Content-Type: application/json" 2>/dev/null)
@@ -221,7 +234,7 @@ fi
 print_info "Verifying configuration..."
 
 # Check realm
-REALM_CHECK=$(curl -sf --max-time 10 -X GET \
+REALM_CHECK=$(curl -sf --max-time 10 --connect-timeout 5 -X GET \
     "$KEYCLOAK_URL/realms/$REALM_NAME" \
     -H "Content-Type: application/json" 2>/dev/null)
 
@@ -233,7 +246,7 @@ fi
 print_success "Realm is accessible"
 
 # Check OIDC configuration
-OIDC_CONFIG=$(curl -sf --max-time 10 -X GET \
+OIDC_CONFIG=$(curl -sf --max-time 10 --connect-timeout 5 -X GET \
     "$KEYCLOAK_URL/realms/$REALM_NAME/.well-known/openid-configuration" \
     -H "Content-Type: application/json" 2>/dev/null)
 
