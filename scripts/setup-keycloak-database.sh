@@ -95,7 +95,7 @@ $DOCKER_COMPOSE exec -T postgres psql -U $POSTGRES_USER -d postgres <<-EOSQL
             RAISE NOTICE 'User $KEYCLOAK_DB_USER created';
         ELSE
             ALTER USER $KEYCLOAK_DB_USER WITH PASSWORD '$KEYCLOAK_DB_PASSWORD';
-            RAISE NOTICE 'User $KEYCLOAK_DB_USER password updated';
+            RAISE NOTICE 'User $KEYCLOAK_DB_USER already exists - password updated';
         END IF;
     END
     \$\$;

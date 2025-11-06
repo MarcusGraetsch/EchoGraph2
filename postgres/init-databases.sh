@@ -11,7 +11,7 @@ echo "====================================="
 # Set defaults
 KEYCLOAK_DB_NAME="${KEYCLOAK_DB:-keycloak}"
 KEYCLOAK_DB_USERNAME="${KEYCLOAK_DB_USER:-keycloak}"
-KEYCLOAK_DB_PASS="${KEYCLOAK_DB_PASSWORD:-keycloak_default}"
+KEYCLOAK_DB_PASS="${KEYCLOAK_DB_PASSWORD:-keycloak_changeme}"
 
 echo "Main database: $POSTGRES_DB"
 echo "Keycloak database: $KEYCLOAK_DB_NAME"
