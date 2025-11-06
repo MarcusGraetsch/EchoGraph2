@@ -87,14 +87,15 @@ done
 print_info "Creating Keycloak database and user..."
 
 $DOCKER_COMPOSE exec -T postgres psql -U $POSTGRES_USER -d postgres <<-EOSQL
-    -- Create keycloak user if not exists
+    -- Create keycloak user if not exists, or update password if exists
     DO \$\$
     BEGIN
         IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '$KEYCLOAK_DB_USER') THEN
             CREATE USER $KEYCLOAK_DB_USER WITH PASSWORD '$KEYCLOAK_DB_PASSWORD';
             RAISE NOTICE 'User $KEYCLOAK_DB_USER created';
         ELSE
-            RAISE NOTICE 'User $KEYCLOAK_DB_USER already exists';
+            ALTER USER $KEYCLOAK_DB_USER WITH PASSWORD '$KEYCLOAK_DB_PASSWORD';
+            RAISE NOTICE 'User $KEYCLOAK_DB_USER already exists - password updated';
         END IF;
     END
     \$\$;

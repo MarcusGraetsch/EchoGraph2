@@ -9,7 +9,7 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-echograph}
       KEYCLOAK_DB: ${KEYCLOAK_DB:-keycloak}
       KEYCLOAK_DB_USER: ${KEYCLOAK_DB_USER:-keycloak}
-      KEYCLOAK_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+      KEYCLOAK_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:-keycloak_changeme}
     ports:
       - "5432:5432"
     volumes:
@@ -106,11 +106,11 @@ services:
       - "8080:8080"
     environment:
       - KEYCLOAK_ADMIN=${KEYCLOAK_ADMIN:-admin}
-      - KEYCLOAK_ADMIN_PASSWORD=${KEYCLOAK_ADMIN_PASSWORD}
+      - KEYCLOAK_ADMIN_PASSWORD=${KEYCLOAK_ADMIN_PASSWORD:-admin_changeme}
       - KC_DB=postgres
       - KC_DB_URL=jdbc:postgresql://postgres:5432/${KEYCLOAK_DB:-keycloak}
       - KC_DB_USERNAME=${KEYCLOAK_DB_USER:-keycloak}
-      - KC_DB_PASSWORD=${KEYCLOAK_DB_PASSWORD}
+      - KC_DB_PASSWORD=${KEYCLOAK_DB_PASSWORD:-keycloak_changeme}
       - KC_HOSTNAME_STRICT=false
       - KC_HOSTNAME_STRICT_HTTPS=false
       - KC_HTTP_ENABLED=true
