@@ -11,6 +11,7 @@ import sys
 from pathlib import Path
 from loguru import logger
 
+from ingestion.storage import StorageClient
 from ..database import get_db
 from ..models import Document, DocumentType, DocumentStatus, User
 from ..schemas import (
