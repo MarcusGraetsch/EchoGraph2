@@ -10,11 +10,24 @@ RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
 FROM node:18-alpine AS builder
 WORKDIR /app
 
+# Accept build arguments from docker-compose
+ARG NEXT_PUBLIC_API_URL
+ARG NEXT_PUBLIC_WS_URL
+ARG NEXT_PUBLIC_KEYCLOAK_URL
+ARG NEXT_PUBLIC_KEYCLOAK_REALM
+ARG NEXT_PUBLIC_KEYCLOAK_CLIENT_ID
+
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Build application
-ENV NEXT_TELEMETRY_DISABLED 1
+# Build application with environment variables
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+ENV NEXT_PUBLIC_WS_URL=${NEXT_PUBLIC_WS_URL}
+ENV NEXT_PUBLIC_KEYCLOAK_URL=${NEXT_PUBLIC_KEYCLOAK_URL}
+ENV NEXT_PUBLIC_KEYCLOAK_REALM=${NEXT_PUBLIC_KEYCLOAK_REALM}
+ENV NEXT_PUBLIC_KEYCLOAK_CLIENT_ID=${NEXT_PUBLIC_KEYCLOAK_CLIENT_ID}
+
 RUN npm run build
 
 FROM node:18-alpine AS runner

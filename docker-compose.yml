@@ -233,13 +233,19 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+        - NEXT_PUBLIC_WS_URL=${NEXT_PUBLIC_WS_URL:-ws://localhost:8000}
+        - NEXT_PUBLIC_KEYCLOAK_URL=${KEYCLOAK_PUBLIC_URL:-http://localhost:8080}
+        - NEXT_PUBLIC_KEYCLOAK_REALM=${KEYCLOAK_REALM:-echograph}
+        - NEXT_PUBLIC_KEYCLOAK_CLIENT_ID=${KEYCLOAK_FRONTEND_CLIENT_ID:-echograph-frontend}
     container_name: echograph-frontend
     ports:
       - "3000:3000"
     environment:
-      - NEXT_PUBLIC_API_URL=${API_HOST:-http://localhost:8000}
-      - NEXT_PUBLIC_WS_URL=${WS_HOST:-ws://localhost:8000}
-      - NEXT_PUBLIC_KEYCLOAK_URL=${KEYCLOAK_PUBLIC_URL}
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+      - NEXT_PUBLIC_WS_URL=${NEXT_PUBLIC_WS_URL:-ws://localhost:8000}
+      - NEXT_PUBLIC_KEYCLOAK_URL=${KEYCLOAK_PUBLIC_URL:-http://localhost:8080}
       - NEXT_PUBLIC_KEYCLOAK_REALM=${KEYCLOAK_REALM:-echograph}
       - NEXT_PUBLIC_KEYCLOAK_CLIENT_ID=${KEYCLOAK_FRONTEND_CLIENT_ID:-echograph-frontend}
     depends_on:
