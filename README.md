@@ -38,45 +38,51 @@ EchoGraph/
 
 ## Quick Start
 
-### Deploy to Server (Contabo, DigitalOcean, AWS, etc.)
+### Deploy to Server (Any Linux VM)
 
-**One-command deployment on Ubuntu:**
+**One-command automated deployment:**
 
 ```bash
 # SSH into your server, then run:
 git clone https://github.com/MarcusGraetsch/EchoGraph2.git
 cd EchoGraph2
-./scripts/deploy-contabo.sh
+./deploy.sh
 ```
 
-📖 **See [Quick Start for VMs](docs/QUICK_START_VM.md)** for detailed server deployment.
+**What this does automatically:**
+- ✅ Detects your VM's IP address
+- ✅ Generates .env configuration
+- ✅ Starts all Docker services
+- ✅ Initializes Keycloak authentication
+- ✅ Ready to use in ~3-5 minutes
 
-📚 **Full deployment guide**: [Contabo/Ubuntu Deployment](docs/deployment-contabo.md)
+📖 **See [DEPLOYMENT.md](DEPLOYMENT.md)** for detailed deployment options.
+
+📚 **Troubleshooting**: [APPLY_FIX_NOW.md](APPLY_FIX_NOW.md)
 
 ### Local Development
 
-1. **Clone the repository**
+1. **Clone and deploy**
    ```bash
    git clone https://github.com/MarcusGraetsch/EchoGraph2.git
    cd EchoGraph2
+   ./deploy.sh
    ```
 
-2. **Set up environment variables**
-   ```bash
-   cp .env.example .env
-   # Edit .env with your configuration
-   ```
-
-3. **Start services with Docker Compose**
-   ```bash
-   docker-compose up -d
-   ```
-
-4. **Access the application**
-   - Frontend: http://localhost:3000
+2. **Access the application**
+   - Frontend: http://localhost:3000 (or http://YOUR_IP:3000)
    - API: http://localhost:8000
    - API Docs: http://localhost:8000/docs
+   - Keycloak: http://localhost:8080
+   - Keycloak Admin: http://localhost:8080/admin
    - n8n: http://localhost:5678
+   - MinIO Console: http://localhost:9001
+
+3. **Default credentials**
+   - Keycloak Admin: `admin` / `admin_changeme`
+   - EchoGraph User: `admin` / `admin` (change on first login)
+
+**Note:** The deploy script automatically detects your IP and configures all services.
 
 ### Prerequisites
 
