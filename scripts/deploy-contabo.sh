@@ -307,8 +307,16 @@ KEYCLOAK_REALM=echograph
 KEYCLOAK_CLIENT_ID=echograph-api
 KEYCLOAK_CLIENT_SECRET=$KEYCLOAK_CLIENT_SECRET
 KEYCLOAK_FRONTEND_CLIENT_ID=echograph-frontend
+# Internal URL (used by backend services within Docker network)
 KEYCLOAK_SERVER_URL=http://keycloak:8080
+# Public URL (used by browser/frontend)
 KEYCLOAK_PUBLIC_URL=http://${SERVER_IP_URL}:8080
+KEYCLOAK_HOSTNAME_URL=http://${SERVER_IP_URL}:8080
+KEYCLOAK_HOSTNAME_ADMIN_URL=http://${SERVER_IP_URL}:8080
+# Frontend Keycloak Configuration
+NEXT_PUBLIC_KEYCLOAK_URL=http://${SERVER_IP_URL}:8080
+NEXT_PUBLIC_KEYCLOAK_REALM=echograph
+NEXT_PUBLIC_KEYCLOAK_CLIENT_ID=echograph-frontend
 
 # Redis / Celery Configuration
 REDIS_URL=redis://redis:6379/0
