@@ -733,7 +733,7 @@ echo ""
 
 # Start services
 print_info "Starting Docker containers..."
-if $COMPOSE_CMD up -d 2>&1 | grep -v "attribute.*version.*obsolete"; then
+if $COMPOSE_CMD up -d --build 2>&1 | grep -v "attribute.*version.*obsolete"; then
     print_success "Docker Compose started"
 else
     print_error "Failed to start services"

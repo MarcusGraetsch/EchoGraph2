@@ -120,9 +120,8 @@ services:
       - KC_HOSTNAME_STRICT_BACKCHANNEL=false
       - KC_HOSTNAME_URL=${KEYCLOAK_HOSTNAME_URL:-http://localhost:8080}
       - KC_HOSTNAME_ADMIN_URL=${KEYCLOAK_HOSTNAME_ADMIN_URL:-http://localhost:8080}
-      # Allow embedding in iframes from frontend
-      - KC_SPI_SECURITY_HEADERS_FRAME_ANCESTORS=*
-      - KC_SPI_SECURITY_HEADERS_CONTENT_SECURITY_POLICY=frame-src 'self'; frame-ancestors *; object-src 'none';
+      # Disable frame-ancestors CSP to allow iframe embedding
+      - KC_SPI_SECURITY_HEADERS_FRAME_ANCESTORS=""
     volumes:
       - keycloak_data:/opt/keycloak/data
     depends_on:
@@ -162,6 +161,7 @@ services:
       - KEYCLOAK_REALM=${KEYCLOAK_REALM:-echograph}
       - KEYCLOAK_CLIENT_ID=${KEYCLOAK_CLIENT_ID:-echograph-api}
       - KEYCLOAK_CLIENT_SECRET=${KEYCLOAK_CLIENT_SECRET}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS}
       - PYTHONPATH=/app
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
