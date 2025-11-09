@@ -1,6 +1,7 @@
 """Configuration management for API service."""
 
-from typing import List
+from typing import List, Union
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -41,11 +42,20 @@ class Settings(BaseSettings):
     celery_result_backend: str = "redis://localhost:6379/0"
 
     # Security
-    allowed_origins: List[str] = [
+    allowed_origins: Union[List[str], str] = [
         "http://localhost:3000",
         "http://localhost:8000"
     ]
     cors_allow_credentials: bool = True
+
+    @field_validator('allowed_origins', mode='before')
+    @classmethod
+    def parse_allowed_origins(cls, v):
+        """Parse ALLOWED_ORIGINS from comma-separated string to list."""
+        if isinstance(v, str):
+            # Split by comma and strip whitespace
+            return [origin.strip() for origin in v.split(',') if origin.strip()]
+        return v
 
     # Monitoring
     sentry_dsn: str = ""
