@@ -12,9 +12,13 @@ import {
   CheckCircle,
   AlertCircle,
   X,
-  Loader2
+  Loader2,
+  User,
+  LogOut,
+  LogIn
 } from 'lucide-react'
 import { documentApi } from '@/lib/api'
+import { useKeycloak } from '@/lib/keycloak'
 
 interface FileUploadStatus {
   file: File
@@ -24,6 +28,7 @@ interface FileUploadStatus {
 }
 
 export default function Dashboard() {
+  const { authenticated, user, login, logout, register, loading } = useKeycloak()
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
   const [isDragging, setIsDragging] = useState(false)
@@ -169,9 +174,39 @@ export default function Dashboard() {
               <h1 className="text-3xl font-bold">EchoGraph</h1>
               <p className="text-sm text-muted-foreground">Document Compliance & Comparison Platform</p>
             </div>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={handleSettings}>Settings</Button>
-              <Button onClick={() => setShowUploadModal(true)}>Upload Document</Button>
+            <div className="flex items-center gap-3">
+              {!loading && (
+                <>
+                  {authenticated && user ? (
+                    <>
+                      <div className="flex items-center gap-2 px-3 py-1.5 bg-muted rounded-md">
+                        <User className="h-4 w-4" />
+                        <span className="text-sm">{user.username || user.email}</span>
+                      </div>
+                      <Button variant="outline" onClick={handleSettings}>Settings</Button>
+                      <Button onClick={() => setShowUploadModal(true)}>Upload Document</Button>
+                      <Button variant="outline" onClick={logout}>
+                        <LogOut className="h-4 w-4 mr-2" />
+                        Logout
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Button variant="outline" onClick={login}>
+                        <LogIn className="h-4 w-4 mr-2" />
+                        Login
+                      </Button>
+                      <Button onClick={register}>Register</Button>
+                    </>
+                  )}
+                </>
+              )}
+              {loading && (
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span className="text-sm">Loading...</span>
+                </div>
+              )}
             </div>
           </div>
         </div>
