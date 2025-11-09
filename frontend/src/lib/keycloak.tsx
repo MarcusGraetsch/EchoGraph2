@@ -108,7 +108,7 @@ export const KeycloakProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
         // Initialize Keycloak
         const authenticated = await kc.init({
-          onLoad: 'check-sso',
+          onLoad: undefined, // Don't force SSO check on load to allow site access even if Keycloak realm isn't initialized
           pkceMethod: 'S256',
           checkLoginIframe: false,
         })
