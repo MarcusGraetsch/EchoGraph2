@@ -33,7 +33,7 @@ cd "$SCRIPT_DIR"
 # Step 1: Check and generate .env file
 ##############################################################################
 
-echo -e "${YELLOW}[1/4] Checking environment configuration...${NC}"
+echo -e "${YELLOW}[1/5] Checking environment configuration...${NC}"
 
 NEEDS_ENV_GENERATION=false
 
@@ -44,7 +44,16 @@ elif grep -q "{{PUBLIC_IP}}" "$SCRIPT_DIR/.env" 2>/dev/null; then
     echo -e "${YELLOW}  ⚠ .env file contains placeholders${NC}"
     NEEDS_ENV_GENERATION=true
 else
-    echo -e "${GREEN}  ✓ .env file exists and is configured${NC}"
+    # Check if .env has actual values (not empty)
+    KEYCLOAK_URL=$(grep -E "^KEYCLOAK_HOSTNAME_URL=" .env | cut -d'=' -f2)
+    FRONTEND_URL=$(grep -E "^NEXT_PUBLIC_KEYCLOAK_URL=" .env | cut -d'=' -f2)
+
+    if [ -z "$KEYCLOAK_URL" ] || [ -z "$FRONTEND_URL" ]; then
+        echo -e "${YELLOW}  ⚠ .env file has empty values${NC}"
+        NEEDS_ENV_GENERATION=true
+    else
+        echo -e "${GREEN}  ✓ .env file exists and is configured${NC}"
+    fi
 fi
 
 if [ "$NEEDS_ENV_GENERATION" = true ]; then
@@ -60,8 +69,8 @@ if [ "$NEEDS_ENV_GENERATION" = true ]; then
         exit 1
     fi
 
-    # Run setup-env.sh automatically
-    "$SCRIPT_DIR/scripts/setup-env.sh"
+    # Run setup-env.sh automatically (non-interactive)
+    echo "y" | "$SCRIPT_DIR/scripts/setup-env.sh" || "$SCRIPT_DIR/scripts/setup-env.sh"
 
     if [ $? -eq 0 ]; then
         echo -e "${GREEN}  ✓ .env configuration generated successfully${NC}"
@@ -79,7 +88,7 @@ echo ""
 # Step 2: Validate configuration
 ##############################################################################
 
-echo -e "${YELLOW}[2/4] Validating configuration...${NC}"
+echo -e "${YELLOW}[2/5] Validating configuration...${NC}"
 
 # Check if .env exists now
 if [ ! -f "$SCRIPT_DIR/.env" ]; then
@@ -87,8 +96,18 @@ if [ ! -f "$SCRIPT_DIR/.env" ]; then
     exit 1
 fi
 
-# Extract configured IP
-CONFIGURED_IP=$(grep -E "^KEYCLOAK_HOSTNAME_URL=" .env | cut -d'/' -f3 | cut -d':' -f1 || echo "unknown")
+# Extract and validate configured values
+KEYCLOAK_HOSTNAME=$(grep -E "^KEYCLOAK_HOSTNAME_URL=" .env | cut -d'=' -f2)
+FRONTEND_KEYCLOAK=$(grep -E "^NEXT_PUBLIC_KEYCLOAK_URL=" .env | cut -d'=' -f2)
+CONFIGURED_IP=$(echo "$KEYCLOAK_HOSTNAME" | cut -d'/' -f3 | cut -d':' -f1)
+
+if [ -z "$KEYCLOAK_HOSTNAME" ] || [ -z "$FRONTEND_KEYCLOAK" ]; then
+    echo -e "${RED}  ✗ .env configuration has empty values${NC}"
+    echo -e "${YELLOW}  KEYCLOAK_HOSTNAME_URL: $KEYCLOAK_HOSTNAME${NC}"
+    echo -e "${YELLOW}  NEXT_PUBLIC_KEYCLOAK_URL: $FRONTEND_KEYCLOAK${NC}"
+    echo -e "${YELLOW}  Try running: ./scripts/setup-env.sh manually${NC}"
+    exit 1
+fi
 
 if [ "$CONFIGURED_IP" = "unknown" ] || [ -z "$CONFIGURED_IP" ]; then
     echo -e "${RED}  ✗ Could not determine configured IP address${NC}"
@@ -98,13 +117,14 @@ fi
 
 echo -e "${GREEN}  ✓ Configuration validated${NC}"
 echo -e "${BLUE}  → Configured IP: ${BOLD}$CONFIGURED_IP${NC}"
+echo -e "${BLUE}  → Keycloak URL: ${BOLD}$KEYCLOAK_HOSTNAME${NC}"
 echo ""
 
 ##############################################################################
 # Step 3: Start services with docker-compose
 ##############################################################################
 
-echo -e "${YELLOW}[3/4] Starting services with Docker Compose...${NC}"
+echo -e "${YELLOW}[3/5] Starting services with Docker Compose...${NC}"
 
 # Check if docker-compose is available
 if ! command -v docker-compose &> /dev/null; then
@@ -135,21 +155,60 @@ fi
 echo ""
 
 ##############################################################################
-# Step 4: Wait for services and initialize Keycloak
+# Step 4: Wait for Keycloak to be accessible
 ##############################################################################
 
-echo -e "${YELLOW}[4/4] Waiting for services to be ready...${NC}"
-
-# Wait for services to start
-echo -e "${BLUE}  → Waiting 60 seconds for services to initialize...${NC}"
-sleep 60
+echo -e "${YELLOW}[4/5] Waiting for Keycloak to be ready...${NC}"
 
 # Check if Keycloak is running
-if docker-compose ps | grep -q "echograph-keycloak.*Up"; then
-    echo -e "${GREEN}  ✓ Keycloak is running${NC}"
+if ! docker-compose ps | grep -q "echograph-keycloak.*Up"; then
+    echo -e "${RED}  ✗ Keycloak is not running${NC}"
+    echo -e "${YELLOW}  Check logs: docker-compose logs keycloak${NC}"
+    exit 1
+fi
 
-    # Initialize Keycloak
-    echo -e "${BLUE}  → Initializing Keycloak...${NC}"
+echo -e "${GREEN}  ✓ Keycloak container is running${NC}"
+
+# Wait for Keycloak to be accessible
+echo -e "${BLUE}  → Waiting for Keycloak to be accessible...${NC}"
+MAX_WAIT=180  # 3 minutes
+WAIT_COUNT=0
+KEYCLOAK_READY=false
+
+while [ $WAIT_COUNT -lt $MAX_WAIT ]; do
+    if curl -s -o /dev/null -w "%{http_code}" http://localhost:8080 | grep -q "200\|303"; then
+        KEYCLOAK_READY=true
+        break
+    fi
+    sleep 2
+    WAIT_COUNT=$((WAIT_COUNT + 2))
+    if [ $((WAIT_COUNT % 10)) -eq 0 ]; then
+        echo -e "${BLUE}  → Still waiting... (${WAIT_COUNT}s / ${MAX_WAIT}s)${NC}"
+    fi
+done
+
+if [ "$KEYCLOAK_READY" = false ]; then
+    echo -e "${RED}  ✗ Keycloak did not become accessible within ${MAX_WAIT} seconds${NC}"
+    echo -e "${YELLOW}  Check logs: docker-compose logs keycloak${NC}"
+    exit 1
+fi
+
+echo -e "${GREEN}  ✓ Keycloak is accessible (took ${WAIT_COUNT}s)${NC}"
+echo ""
+
+##############################################################################
+# Step 5: Initialize Keycloak realm
+##############################################################################
+
+echo -e "${YELLOW}[5/5] Initializing Keycloak realm...${NC}"
+
+# Check if realm already exists
+REALM_EXISTS=$(curl -s http://localhost:8080/realms/echograph 2>&1 | grep -q "realm" && echo "true" || echo "false")
+
+if [ "$REALM_EXISTS" = "true" ]; then
+    echo -e "${GREEN}  ✓ Realm 'echograph' already exists${NC}"
+else
+    echo -e "${BLUE}  → Importing realm configuration...${NC}"
 
     if [ -f "$SCRIPT_DIR/keycloak/init-keycloak.sh" ]; then
         chmod +x "$SCRIPT_DIR/keycloak/init-keycloak.sh"
@@ -158,19 +217,32 @@ if docker-compose ps | grep -q "echograph-keycloak.*Up"; then
         "$SCRIPT_DIR/keycloak/init-keycloak.sh"
 
         if [ $? -eq 0 ]; then
-            echo -e "${GREEN}  ✓ Keycloak initialized successfully${NC}"
+            echo -e "${GREEN}  ✓ Keycloak realm imported successfully${NC}"
+
+            # Verify realm was imported
+            sleep 2
+            REALM_EXISTS=$(curl -s http://localhost:8080/realms/echograph 2>&1 | grep -q "realm" && echo "true" || echo "false")
+
+            if [ "$REALM_EXISTS" = "true" ]; then
+                echo -e "${GREEN}  ✓ Realm verified and accessible${NC}"
+            else
+                echo -e "${RED}  ✗ Realm import completed but realm not accessible${NC}"
+                echo -e "${YELLOW}  Try running manually: ./keycloak/init-keycloak.sh${NC}"
+            fi
         else
-            echo -e "${YELLOW}  ⚠ Keycloak initialization had issues${NC}"
-            echo -e "${YELLOW}  You may need to run: ./keycloak/init-keycloak.sh${NC}"
+            echo -e "${RED}  ✗ Keycloak realm import failed${NC}"
+            echo -e "${YELLOW}  Try running manually: ./keycloak/init-keycloak.sh${NC}"
         fi
     else
-        echo -e "${YELLOW}  ⚠ Keycloak init script not found${NC}"
-        echo -e "${YELLOW}  Please run: ./keycloak/init-keycloak.sh${NC}"
+        echo -e "${RED}  ✗ Keycloak init script not found${NC}"
+        exit 1
     fi
-else
-    echo -e "${YELLOW}  ⚠ Keycloak may still be starting${NC}"
-    echo -e "${YELLOW}  Monitor with: docker-compose logs -f keycloak${NC}"
 fi
+
+# Restart frontend to ensure it picks up the configuration
+echo -e "${BLUE}  → Restarting frontend with new configuration...${NC}"
+docker-compose restart frontend > /dev/null 2>&1
+echo -e "${GREEN}  ✓ Frontend restarted${NC}"
 
 echo ""
 
