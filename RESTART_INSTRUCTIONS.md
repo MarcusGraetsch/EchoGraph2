@@ -1,131 +1,198 @@
-# Restart Instructions for Keycloak Authentication Fix
+# Quick Restart Guide - Keycloak Authentication Fix
 
-## Problem Fixed
-The Keycloak authentication was showing "Page not found" when accessing from the public IP `http://178.18.254.21:3000` because:
-1. Keycloak was configured for `localhost:8080` only
-2. The frontend redirect URIs didn't include the public IP
-3. The hostname configuration was incorrect
+## For Current Deployment (178.18.254.21)
 
-## Changes Made
-1. **Created `.env` file** with proper public IP configuration:
-   - `KEYCLOAK_PUBLIC_URL=http://178.18.254.21:8080`
-   - `KEYCLOAK_HOSTNAME_URL=http://178.18.254.21:8080`
-   - `NEXT_PUBLIC_API_URL=http://178.18.254.21:8000`
-   - Updated CORS origins
+If you're deploying on the existing VM at `178.18.254.21`, follow these steps:
 
-2. **Updated Keycloak realm configuration** (`keycloak/echograph-realm.json`):
-   - Added redirect URIs for `http://178.18.254.21:3000/*`
-   - Added redirect URIs for `http://178.18.254.21:8000/*`
-   - Updated web origins to include public IP
-   - Updated post-logout redirect URIs
+### Step 1: Generate Environment Configuration
 
-## How to Apply These Changes
-
-### Step 1: Stop All Services
 ```bash
+cd /path/to/EchoGraph2
+
+# Auto-detect IP and generate .env file
+./scripts/setup-env.sh
+```
+
+The script will:
+- Detect your VM's IP address (178.18.254.21)
+- Create `.env` file with correct configuration
+- Configure Keycloak for public IP access
+
+### Step 2: Restart Services
+
+```bash
+# Stop all services
 docker-compose down
-```
 
-### Step 2: Remove Keycloak Data (To Force Realm Reload)
-```bash
-docker volume rm echograph2_keycloak_data
-```
-**Note:** This will delete existing Keycloak users. The default admin user will be recreated.
-
-### Step 3: Start Services
-```bash
+# Start services with new configuration
 docker-compose up -d
 ```
 
-### Step 4: Wait for Services to Start
-```bash
-# Check service status
-docker-compose ps
+### Step 3: Initialize Keycloak
 
-# Watch Keycloak logs
+```bash
+# Wait for services to start (about 1-2 minutes)
 docker-compose logs -f keycloak
-```
-Wait until you see: `Keycloak ... started`
+# Press Ctrl+C when you see "Keycloak ... started"
 
-### Step 5: Initialize Keycloak with the Realm
-```bash
-# Run the initialization script
+# Initialize Keycloak with realm configuration
 ./keycloak/init-keycloak.sh
 ```
 
-### Step 6: Test the Authentication
+### Step 4: Test Authentication
+
 1. Open browser to: `http://178.18.254.21:3000`
 2. Click "Login" button
-3. You should see the Keycloak login page (not "Page not found")
+3. You should now see the **Keycloak login page** (not "Page not found")
 4. Login with default credentials:
    - Username: `admin`
-   - Password: `admin` (you'll be prompted to change it on first login)
+   - Password: `admin` (change on first login)
 
-## Alternative: Restart Without Losing Data
+---
 
-If you want to keep existing Keycloak users and just update the configuration:
+## What Was Fixed?
 
-### Step 1: Access Keycloak Admin Console
+### The Problem
+When clicking "Login" at `http://178.18.254.21:3000`, it redirected to Keycloak but showed "Page not found" because:
+- Keycloak was configured for `localhost:8080` only
+- Frontend redirect URIs didn't include the public IP
+- Hostname validation rejected requests from 178.18.254.21
+
+### The Solution
+1. **Dynamic IP Configuration** - Created automated scripts that detect the VM's IP
+2. **Updated Keycloak Realm** - Added redirect URIs for public IP access
+3. **Environment Templates** - Modified `.env.example` to use `{{PUBLIC_IP}}` placeholders
+
+---
+
+## Alternative: Manual Configuration
+
+If the automated script doesn't work, you can configure manually:
+
+### Option 1: Generate with Custom IP
+
 ```bash
-# Open in browser
-http://178.18.254.21:8080/admin
+./scripts/setup-env.sh 178.18.254.21
 ```
 
-### Step 2: Update Client Configuration Manually
-1. Login with admin credentials
-2. Select "echograph" realm
-3. Go to "Clients" → "echograph-frontend"
-4. Add to "Valid redirect URIs": `http://178.18.254.21:3000/*`
-5. Add to "Valid post logout redirect URIs": `http://178.18.254.21:3000/*`
+### Option 2: Update Keycloak Admin Console
+
+1. Access: `http://178.18.254.21:8080/admin`
+2. Login with admin credentials
+3. Select "echograph" realm
+4. Go to "Clients" → "echograph-frontend"
+5. Add to "Valid redirect URIs": `http://178.18.254.21:3000/*`
 6. Add to "Web origins": `http://178.18.254.21:3000`
 7. Click "Save"
-8. Repeat for "echograph-api" client with port 8000
+8. Repeat for "echograph-api" with port 8000
 
-### Step 3: Restart Frontend and API Services
+Then restart:
 ```bash
-docker-compose restart frontend api keycloak
+docker-compose restart keycloak frontend api
 ```
+
+---
 
 ## Troubleshooting
 
 ### Still Getting "Page not found"?
-Check if Keycloak is accessible:
+
+**Check Keycloak accessibility:**
 ```bash
 curl -I http://178.18.254.21:8080
 ```
 Should return HTTP 200 or 303, not 403.
 
-### Getting CORS errors?
-Check that `.env` has:
-```env
-ALLOWED_ORIGINS=http://178.18.254.21:3000,http://178.18.254.21:8000
+**Check .env configuration:**
+```bash
+grep KEYCLOAK_HOSTNAME_URL .env
+```
+Should show: `KEYCLOAK_HOSTNAME_URL=http://178.18.254.21:8080`
+
+**Restart Keycloak:**
+```bash
+docker-compose restart keycloak
+./keycloak/init-keycloak.sh
 ```
 
-### Redirect not working?
-1. Check browser console for errors
-2. Verify `NEXT_PUBLIC_KEYCLOAK_URL` in frontend build:
-   ```bash
-   docker-compose exec frontend printenv | grep KEYCLOAK
-   ```
-   Should show: `NEXT_PUBLIC_KEYCLOAK_URL=http://178.18.254.21:8080`
+### Getting CORS Errors?
 
-### Need to rebuild frontend?
-If environment variables aren't updated:
+**Check CORS configuration:**
+```bash
+grep ALLOWED_ORIGINS .env
+```
+Should include: `http://178.18.254.21:3000,http://178.18.254.21:8000`
+
+**Restart API:**
+```bash
+docker-compose restart api
+```
+
+### Frontend Environment Variables Wrong?
+
+**Check variables:**
+```bash
+docker-compose exec frontend printenv | grep NEXT_PUBLIC
+```
+
+**Rebuild if needed:**
 ```bash
 docker-compose down frontend
 docker-compose build --no-cache frontend
 docker-compose up -d frontend
 ```
 
-## Default Credentials
-- **Keycloak Admin**: admin / admin_changeme
-- **Default User**: admin / admin (temporary, change on first login)
+### Need to Start Fresh?
 
-## Important Notes
-1. The `.env` file is now configured for public IP `178.18.254.21`
-2. If you need to access from a different IP or domain, update:
-   - `KEYCLOAK_PUBLIC_URL`
-   - `KEYCLOAK_HOSTNAME_URL`
-   - `NEXT_PUBLIC_API_URL`
-   - `ALLOWED_ORIGINS`
-3. For production, change all default passwords and enable HTTPS
+**Complete reset (WARNING: Deletes all data!):**
+```bash
+docker-compose down -v
+./scripts/setup-env.sh
+docker-compose up -d
+./keycloak/init-keycloak.sh
+```
+
+---
+
+## Default Credentials
+
+| Service | Username | Password |
+|---------|----------|----------|
+| Keycloak Admin Console | admin | admin_changeme |
+| EchoGraph Default User | admin | admin (temporary) |
+| n8n | admin | changeme |
+| MinIO | minioadmin | minioadmin |
+
+**⚠️ IMPORTANT:** Change all default passwords for production!
+
+---
+
+## Service URLs
+
+After successful deployment:
+
+- **Frontend:** http://178.18.254.21:3000
+- **API:** http://178.18.254.21:8000
+- **API Docs:** http://178.18.254.21:8000/docs
+- **Keycloak:** http://178.18.254.21:8080
+- **Keycloak Admin:** http://178.18.254.21:8080/admin
+- **n8n:** http://178.18.254.21:5678
+- **MinIO Console:** http://178.18.254.21:9001
+
+---
+
+## For New Deployments on Different VMs
+
+If you're deploying on a **different VM** (not 178.18.254.21), see the **[DEPLOYMENT.md](./DEPLOYMENT.md)** guide for comprehensive instructions.
+
+The setup script will automatically detect the new VM's IP address and configure everything accordingly:
+
+```bash
+git clone https://github.com/MarcusGraetsch/EchoGraph2.git
+cd EchoGraph2
+./scripts/setup-env.sh
+docker-compose up -d
+./keycloak/init-keycloak.sh
+```
+
+No hardcoded IPs - works on any VM! 🚀
