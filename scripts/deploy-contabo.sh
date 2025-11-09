@@ -229,17 +229,35 @@ if [ ! -f ".env" ]; then
     KEYCLOAK_DB_PASSWORD=$(openssl rand -hex 16)  # Keycloak database password
     KEYCLOAK_CLIENT_SECRET=$(openssl rand -hex 32)  # API client secret
 
-    # Get server IP
-    SERVER_IP=$(curl -s ifconfig.me)
+    # Get server IP - prefer IPv4 over IPv6
+    print_info "Detecting server IP address..."
 
-    # Check if it's an IPv6 address (contains colons)
-    # IPv6 addresses need to be wrapped in brackets for URLs
-    if echo "$SERVER_IP" | grep -q ':'; then
-        print_info "Detected IPv6 address: $SERVER_IP"
-        SERVER_IP_URL="[$SERVER_IP]"  # Wrap in brackets for URLs
+    # Try IPv4 first (most compatible)
+    SERVER_IP=$(curl -4 -s --connect-timeout 5 ifconfig.me 2>/dev/null || echo "")
+
+    if [ -n "$SERVER_IP" ]; then
+        print_success "Using IPv4 address: $SERVER_IP"
+        SERVER_IP_URL="$SERVER_IP"  # IPv4 doesn't need brackets
     else
-        print_info "Detected IPv4 address: $SERVER_IP"
-        SERVER_IP_URL="$SERVER_IP"    # IPv4 doesn't need brackets
+        # Fallback to IPv6 if IPv4 not available
+        print_warning "IPv4 not available, trying IPv6..."
+        SERVER_IP=$(curl -6 -s --connect-timeout 5 ifconfig.me 2>/dev/null || echo "")
+
+        if [ -n "$SERVER_IP" ]; then
+            print_info "Using IPv6 address: $SERVER_IP"
+            SERVER_IP_URL="[$SERVER_IP]"  # IPv6 needs brackets for URLs
+        else
+            print_error "Could not detect server IP address"
+            print_info "Please enter your server IP manually:"
+            read -p "Server IP: " SERVER_IP
+
+            # Check if manually entered IP is IPv6
+            if echo "$SERVER_IP" | grep -q ':'; then
+                SERVER_IP_URL="[$SERVER_IP]"
+            else
+                SERVER_IP_URL="$SERVER_IP"
+            fi
+        fi
     fi
 
     # Create comprehensive .env file
@@ -335,7 +353,10 @@ EOF
     echo "  API Secret Key:          $API_SECRET"
     echo "  Server IP:               $SERVER_IP"
     if echo "$SERVER_IP" | grep -q ':'; then
-        echo "  ℹ️  IPv6 detected - URLs use: [$SERVER_IP]:port"
+        echo "  ℹ️  Note: IPv6 address (IPv4 preferred but not available)"
+        echo "  ℹ️  URLs use bracket notation: [$SERVER_IP]:port"
+    else
+        echo "  ✓  Using IPv4 (recommended for best compatibility)"
     fi
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo ""
@@ -413,7 +434,18 @@ EOF
 else
     print_warning ".env file already exists, skipping"
     # Read SERVER_IP from existing .env, fallback to fetching it
-    SERVER_IP=$(grep "^SERVER_IP=" .env | cut -d'=' -f2 || curl -s ifconfig.me)
+    SERVER_IP=$(grep "^SERVER_IP=" .env | cut -d'=' -f2)
+
+    if [ -z "$SERVER_IP" ]; then
+        print_info "SERVER_IP not found in .env, detecting..."
+        # Try IPv4 first
+        SERVER_IP=$(curl -4 -s --connect-timeout 5 ifconfig.me 2>/dev/null || echo "")
+
+        if [ -z "$SERVER_IP" ]; then
+            # Fallback to IPv6
+            SERVER_IP=$(curl -6 -s --connect-timeout 5 ifconfig.me 2>/dev/null || curl -s ifconfig.me)
+        fi
+    fi
 
     # Check if it's IPv6 and set SERVER_IP_URL accordingly
     if echo "$SERVER_IP" | grep -q ':'; then
