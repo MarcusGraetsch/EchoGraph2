@@ -56,14 +56,42 @@ echo "5. Checking firewall rules..."
 sudo ufw status | grep -E '(3000|8000|5678|9000|9001)'
 echo ""
 
-echo "6. Checking Docker logs for errors..."
-echo "Last 20 lines from each service:"
+echo "6. Checking Keycloak status..."
+if curl -s http://localhost:8080 > /dev/null; then
+    echo -e "${GREEN}✓ Keycloak responds on localhost${NC}"
+
+    # Check if realm exists
+    REALM_CHECK=$(curl -s http://localhost:8080/realms/echograph 2>&1)
+    if echo "$REALM_CHECK" | grep -q "realm"; then
+        echo -e "${GREEN}✓ Realm 'echograph' exists${NC}"
+    else
+        echo -e "${RED}✗ Realm 'echograph' NOT found!${NC}"
+        echo -e "${YELLOW}You need to import the realm: ./keycloak/init-keycloak.sh${NC}"
+    fi
+else
+    echo -e "${RED}✗ Keycloak NOT responding on localhost${NC}"
+fi
+echo ""
+
+echo "7. Checking environment configuration..."
+if [ -f .env ]; then
+    echo -e "${GREEN}✓ .env file exists${NC}"
+    echo "Keycloak Hostname: $(grep KEYCLOAK_HOSTNAME_URL .env | cut -d'=' -f2)"
+    echo "Frontend Keycloak URL: $(grep NEXT_PUBLIC_KEYCLOAK_URL .env | cut -d'=' -f2)"
+else
+    echo -e "${RED}✗ .env file NOT found!${NC}"
+    echo -e "${YELLOW}Run: ./scripts/setup-env.sh${NC}"
+fi
+echo ""
+
+echo "8. Checking Docker logs for errors..."
+echo "Last 30 lines from Keycloak:"
+echo ""
+echo "--- Keycloak ---"
+docker-compose logs --tail=30 keycloak 2>/dev/null || sudo docker-compose logs --tail=30 keycloak
 echo ""
 echo "--- Frontend ---"
 docker-compose logs --tail=20 frontend 2>/dev/null || sudo docker-compose logs --tail=20 frontend
-echo ""
-echo "--- API ---"
-docker-compose logs --tail=20 api 2>/dev/null || sudo docker-compose logs --tail=20 api
 echo ""
 
 echo "=========================================="
@@ -72,15 +100,21 @@ echo "=========================================="
 echo ""
 echo "Common Issues & Fixes:"
 echo ""
-echo "1. Services not running:"
+echo "1. Keycloak realm not found (404 error):"
+echo "   ./keycloak/init-keycloak.sh"
+echo ""
+echo "2. Missing .env configuration:"
+echo "   ./scripts/setup-env.sh"
+echo ""
+echo "3. Services not running:"
 echo "   cd ~/EchoGraph2 && sudo docker-compose up -d"
 echo ""
-echo "2. Services crashed:"
-echo "   cd ~/EchoGraph2 && sudo docker-compose restart"
+echo "4. Services crashed:"
+echo "   cd ~/EchoGraph2 && sudo docker-compose restart keycloak frontend"
 echo ""
-echo "3. Port binding issues:"
+echo "5. Port binding issues:"
 echo "   cd ~/EchoGraph2 && sudo docker-compose down && sudo docker-compose up -d"
 echo ""
-echo "4. View full logs:"
-echo "   cd ~/EchoGraph2 && sudo docker-compose logs -f"
+echo "6. View full Keycloak logs:"
+echo "   cd ~/EchoGraph2 && sudo docker-compose logs -f keycloak"
 echo ""
