@@ -4,7 +4,7 @@
   "displayName": "EchoGraph",
   "displayNameHtml": "<b>EchoGraph</b> Identity Management",
   "enabled": true,
-  "sslRequired": "external",
+  "sslRequired": "none",
   "registrationAllowed": true,
   "registrationEmailAsUsername": false,
   "rememberMe": true,
