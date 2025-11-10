@@ -33,6 +33,105 @@ print_error() {
     echo -e "${RED}✗${NC} $1"
 }
 
+GENERATED_REALM_FILE=""
+
+cleanup() {
+    if [ -n "$GENERATED_REALM_FILE" ] && [ -f "$GENERATED_REALM_FILE" ]; then
+        rm -f "$GENERATED_REALM_FILE"
+    fi
+}
+
+strip_trailing_slash() {
+    local value="$1"
+    while [[ "$value" == */ ]]; do
+        value="${value%/}"
+    done
+    echo "$value"
+}
+
+convert_ws_to_http() {
+    local value="$1"
+    case "$value" in
+        wss://*) echo "https://${value#wss://}" ;;
+        ws://*) echo "http://${value#ws://}" ;;
+        *) echo "$value" ;;
+    esac
+}
+
+make_redirect_uri() {
+    local origin
+    origin=$(strip_trailing_slash "$1")
+    if [ -z "$origin" ]; then
+        echo ""
+    else
+        echo "${origin}/*"
+    fi
+}
+
+generate_realm_file() {
+    local template_file="$1"
+    local output_file="$2"
+
+    if ! command -v jq >/dev/null 2>&1; then
+        print_error "jq is required to generate the Keycloak realm configuration"
+        exit 1
+    fi
+
+    local default_frontend="http://localhost:3000"
+    local frontend_url="${FRONTEND_PUBLIC_URL:-${NEXT_PUBLIC_FRONTEND_URL:-$default_frontend}}"
+    local api_url="${NEXT_PUBLIC_API_URL:-http://localhost:8000}"
+    local ws_url="${NEXT_PUBLIC_WS_URL:-ws://localhost:8000}"
+    local keycloak_public_url="${KEYCLOAK_PUBLIC_URL:-http://localhost:8080}"
+
+    local frontend_origin="$(strip_trailing_slash "$frontend_url")"
+    local api_origin="$(strip_trailing_slash "$api_url")"
+    local ws_origin="$(strip_trailing_slash "$(convert_ws_to_http "$ws_url")")"
+    local keycloak_origin="$(strip_trailing_slash "$keycloak_public_url")"
+
+    local frontend_redirect="$(make_redirect_uri "$frontend_origin")"
+    local api_redirect="$(make_redirect_uri "$api_origin")"
+    local logout_uris="$frontend_redirect"
+
+    print_info "Generating realm configuration with dynamic URLs"
+    echo "  Frontend origin: ${frontend_origin:-<not set>}"
+    echo "  API origin: ${api_origin:-<not set>}"
+    echo "  WebSocket origin: ${ws_origin:-<not set>}"
+    echo "  Keycloak public origin: ${keycloak_origin:-<not set>}"
+
+    jq \
+        --arg apiOrigin "$api_origin" \
+        --arg apiRedirect "$api_redirect" \
+        --arg frontendOrigin "$frontend_origin" \
+        --arg frontendRedirect "$frontend_redirect" \
+        --arg wsOrigin "$ws_origin" \
+        --arg keycloakOrigin "$keycloak_origin" \
+        --arg logoutUris "$logout_uris" \
+        '
+        def nonempty(vals):
+          [vals[] | select(. != null and . != "")];
+
+        (.clients[] | select(.clientId == "echograph-api") | .redirectUris) =
+          (nonempty([$apiRedirect])) |
+
+        (.clients[] | select(.clientId == "echograph-api") | .webOrigins) =
+          (nonempty([$apiOrigin, $frontendOrigin, $wsOrigin, $keycloakOrigin]) + ["*"] | unique) |
+
+        (.clients[] | select(.clientId == "echograph-frontend") | .redirectUris) =
+          (nonempty([$frontendRedirect])) |
+
+        (.clients[] | select(.clientId == "echograph-frontend") | .webOrigins) =
+          (nonempty([$frontendOrigin]) + ["*"] | unique) |
+
+        (.clients[] | select(.clientId == "echograph-frontend") | .attributes["post.logout.redirect.uris"]) =
+          $logoutUris
+        ' "$template_file" > "$output_file"
+}
+
+trap cleanup EXIT
+
+# Determine script location for template resolution
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 # Configuration from environment or defaults
 KEYCLOAK_URL="${KEYCLOAK_SERVER_URL:-http://localhost:8080}"
 KEYCLOAK_ADMIN="${KEYCLOAK_ADMIN:-admin}"
@@ -40,7 +139,6 @@ KEYCLOAK_ADMIN_PASSWORD="${KEYCLOAK_ADMIN_PASSWORD}"
 REALM_NAME="${KEYCLOAK_REALM:-echograph}"
 CLIENT_ID="${KEYCLOAK_CLIENT_ID:-echograph-api}"
 CLIENT_SECRET="${KEYCLOAK_CLIENT_SECRET}"
-REALM_FILE="/tmp/echograph-realm.json"
 
 # Check if running in container or on host
 if [ -f "/.dockerenv" ]; then
@@ -136,53 +234,80 @@ print_success "Authenticated successfully"
 
 print_info "Checking if realm '$REALM_NAME' exists..."
 
+REALM_EXISTS=false
 # Use timeout command to ensure curl doesn't hang
-REALM_EXISTS=$(timeout 10 curl -sf --max-time 10 --connect-timeout 5 -X GET \
+REALM_LOOKUP=$(timeout 10 curl -sf --max-time 10 --connect-timeout 5 -X GET \
     "$KEYCLOAK_URL/admin/realms/$REALM_NAME" \
     -H "Authorization: Bearer $ACCESS_TOKEN" \
     -H "Content-Type: application/json" 2>/dev/null)
 
 CURL_EXIT=$?
 
-if [ $CURL_EXIT -eq 0 ] && [ -n "$REALM_EXISTS" ]; then
-    print_warning "Realm '$REALM_NAME' already exists - skipping import"
-    REALM_CREATED=false
+if [ $CURL_EXIT -eq 0 ] && [ -n "$REALM_LOOKUP" ]; then
+    print_info "Realm '$REALM_NAME' exists - it will be updated"
+    REALM_EXISTS=true
 elif [ $CURL_EXIT -eq 124 ]; then
     print_error "Timeout while checking realm existence"
     print_info "Assuming realm does not exist - will attempt to create it"
-    REALM_CREATED=true
+    REALM_EXISTS=false
 else
-    print_info "Realm does not exist - will create it"
-    REALM_CREATED=true
+    print_info "Realm does not exist - it will be created"
+    REALM_EXISTS=false
 fi
 
 ##############################################################################
 # Step 4: Import realm configuration (if needed)
 ##############################################################################
 
-if [ "$REALM_CREATED" = true ]; then
-    print_info "Importing realm configuration..."
+TEMPLATE_FILE="$SCRIPT_DIR/echograph-realm.json"
 
-    # The realm file should be mounted or copied to this location
-    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    if [ ! -f "$SCRIPT_DIR/echograph-realm.json" ]; then
-        print_error "Realm configuration file not found: $SCRIPT_DIR/echograph-realm.json"
-        exit 1
-    fi
+if [ ! -f "$TEMPLATE_FILE" ]; then
+    print_error "Realm configuration template not found: $TEMPLATE_FILE"
+    exit 1
+fi
 
-    IMPORT_RESPONSE=$(timeout 40 curl -sf --max-time 30 --connect-timeout 10 -X POST \
-        "$KEYCLOAK_URL/admin/realms" \
+GENERATED_REALM_FILE="$(mktemp /tmp/echograph-realm.XXXXXX.json)"
+
+generate_realm_file "$TEMPLATE_FILE" "$GENERATED_REALM_FILE"
+if [ "$REALM_EXISTS" = true ]; then
+    print_info "Updating existing realm configuration..."
+
+    HTTP_CODE=$(timeout 40 curl -s -o /tmp/keycloak_realm_update_response.$$ -w "%{http_code}" --max-time 30 --connect-timeout 10 -X PUT \
+        "$KEYCLOAK_URL/admin/realms/$REALM_NAME" \
         -H "Authorization: Bearer $ACCESS_TOKEN" \
         -H "Content-Type: application/json" \
-        -d @"$SCRIPT_DIR/echograph-realm.json" 2>/dev/null)
+        -d @"$GENERATED_REALM_FILE" 2>/dev/null || true)
 
-    if [ $? -ne 0 ]; then
-        print_error "Failed to import realm configuration"
+    if [ "$HTTP_CODE" != "204" ]; then
+        print_error "Failed to update realm configuration (HTTP $HTTP_CODE)"
+        if [ -f /tmp/keycloak_realm_update_response.$$ ]; then
+            cat /tmp/keycloak_realm_update_response.$$
+            rm -f /tmp/keycloak_realm_update_response.$$
+        fi
         exit 1
     fi
 
-    print_success "Realm imported successfully"
+    rm -f /tmp/keycloak_realm_update_response.$$
+    print_success "Realm updated successfully"
 else
+    print_info "Importing realm configuration..."
+
+    HTTP_CODE=$(timeout 40 curl -s -o /tmp/keycloak_realm_import_response.$$ -w "%{http_code}" --max-time 30 --connect-timeout 10 -X POST \        "$KEYCLOAK_URL/admin/realms" \
+        -H "Authorization: Bearer $ACCESS_TOKEN" \
+        -H "Content-Type: application/json" \
+        -d @"$GENERATED_REALM_FILE" 2>/dev/null || true)
+
+    if [ "$HTTP_CODE" != "201" ] && [ "$HTTP_CODE" != "204" ]; then
+        print_error "Failed to import realm configuration (HTTP $HTTP_CODE)"
+        if [ -f /tmp/keycloak_realm_import_response.$$ ]; then
+            cat /tmp/keycloak_realm_import_response.$$
+            rm -f /tmp/keycloak_realm_import_response.$$
+        fi
+        exit 1
+    fi
+
+    rm -f /tmp/keycloak_realm_import_response.$$
+    print_success "Realm imported successfully"
     print_info "Using existing realm"
 fi
 

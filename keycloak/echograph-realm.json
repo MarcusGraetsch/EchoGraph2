@@ -89,15 +89,10 @@
       "serviceAccountsEnabled": true,
       "authorizationServicesEnabled": true,
       "redirectUris": [
-        "http://localhost:8000/*",
-        "http://*:8000/*",
-        "http://178.18.254.21:8000/*"
+        "__API_REDIRECT_URI__"
       ],
       "webOrigins": [
-        "http://localhost:8000",
-        "http://localhost:3000",
-        "http://178.18.254.21:8000",
-        "http://178.18.254.21:3000",
+        "__API_WEB_ORIGIN__",
         "*"
       ],
       "attributes": {
@@ -162,18 +157,14 @@
       "directAccessGrantsEnabled": true,
       "serviceAccountsEnabled": false,
       "redirectUris": [
-        "http://localhost:3000/*",
-        "http://*:3000/*",
-        "http://178.18.254.21:3000/*"
+        "__FRONTEND_REDIRECT_URI__"
       ],
       "webOrigins": [
-        "http://localhost:3000",
-        "http://*:3000",
-        "http://178.18.254.21:3000",
+        "__FRONTEND_ORIGIN__",
         "*"
       ],
       "attributes": {
-        "post.logout.redirect.uris": "http://localhost:3000/*+http://178.18.254.21:3000/*",
+        "post.logout.redirect.uris": "__FRONTEND_LOGOUT_URIS__",
         "pkce.code.challenge.method": "S256"
       },
       "protocolMappers": [
