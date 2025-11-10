@@ -434,6 +434,13 @@ npm test
 cd frontend
 npx playwright test
 ```
+## Keycloak SSL Configuration
+
+- The `echograph` Keycloak realm is currently configured with `"sslRequired": "none"` to allow HTTP connections in constrained environments. Re-import the realm with `./keycloak/init-keycloak.sh` after pulling configuration changes so the relaxed policy is applied.
+- Plan to re-enable HTTPS before production by either:
+  - Terminating TLS in a reverse proxy (e.g., Traefik, Nginx) in front of Keycloak and switching the realm back to `sslRequired: external`.
+  - Enabling Keycloak's built-in HTTPS listener with managed certificates and updating client redirect URIs accordingly.
+- Document the chosen approach and timeline so the temporary relaxation can be reverted once HTTPS infrastructure is available.
 
 ## Next Steps
 
