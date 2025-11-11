@@ -9,6 +9,17 @@
 
 set -e
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+ENV_FILE="$PROJECT_ROOT/.env"
+
+if [ -f "$ENV_FILE" ]; then
+    set -a
+    # shellcheck source=/dev/null
+    source "$ENV_FILE"
+    set +a
+fi
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -38,6 +49,64 @@ GENERATED_REALM_FILE=""
 cleanup() {
     if [ -n "$GENERATED_REALM_FILE" ] && [ -f "$GENERATED_REALM_FILE" ]; then
         rm -f "$GENERATED_REALM_FILE"
+    fi
+}
+
+detect_compose_command() {
+    if docker compose version >/dev/null 2>&1; then
+        echo "docker compose"
+    elif command -v docker-compose >/dev/null 2>&1; then
+        echo "docker-compose"
+    else
+        return 1
+    fi
+}
+
+ensure_keycloak_database() {
+    local compose_cmd="$1"
+    local pg_user="${POSTGRES_USER:-echograph}"
+    local pg_db="${POSTGRES_DB:-echograph}"
+    local kc_db="${KEYCLOAK_DB:-keycloak}"
+    local kc_user="${KEYCLOAK_DB_USER:-keycloak}"
+    local kc_password="${KEYCLOAK_DB_PASSWORD:-keycloak_changeme}"
+
+    print_info "Ensuring Keycloak database credentials are synchronized..."
+
+    set +e
+    $compose_cmd exec -T postgres psql -v ON_ERROR_STOP=1 \
+        --username "$pg_user" --dbname "$pg_db" <<EOSQL
+DO
+$$
+DECLARE
+    role_name text := '${kc_user}';
+    db_name   text := '${kc_db}';
+    pass      text := '${kc_password}';
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = role_name) THEN
+        EXECUTE format('CREATE USER %I WITH PASSWORD %L', role_name, pass);
+        RAISE NOTICE 'Created user %', role_name;
+    ELSE
+        EXECUTE format('ALTER USER %I WITH PASSWORD %L', role_name, pass);
+        RAISE NOTICE 'Updated password for user %', role_name;
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = db_name) THEN
+        EXECUTE format('CREATE DATABASE %I OWNER %I', db_name, role_name);
+        RAISE NOTICE 'Created database % owned by %', db_name, role_name;
+    END IF;
+
+    EXECUTE format('GRANT ALL PRIVILEGES ON DATABASE %I TO %I', db_name, role_name);
+END;
+$$;
+EOSQL
+    local status=$?
+    set -e
+
+    if [ $status -ne 0 ]; then
+        print_warning "Could not synchronize Keycloak database credentials."
+        print_warning "Check that the postgres service is running and rerun the script if needed."
+    else
+        print_success "Keycloak database credentials synchronized."
     fi
 }
 
@@ -129,8 +198,12 @@ generate_realm_file() {
 
 trap cleanup EXIT
 
-# Determine script location for template resolution
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Determine docker compose command for later use
+COMPOSE_CMD="$(detect_compose_command)"
+if [ -z "$COMPOSE_CMD" ]; then
+    print_error "Neither 'docker compose' nor 'docker-compose' is available."
+    exit 1
+fi
 
 # Configuration from environment or defaults
 KEYCLOAK_URL="${KEYCLOAK_SERVER_URL:-http://localhost:8080}"
@@ -150,6 +223,11 @@ print_info "Starting Keycloak initialization..."
 echo "  Keycloak URL: $KEYCLOAK_URL"
 echo "  Realm: $REALM_NAME"
 echo "  Client ID: $CLIENT_ID"
+
+# Ensure the backing Postgres credentials are in sync before waiting for
+# Keycloak to come up. This helps when the postgres volume already existed
+# with a stale password.
+ensure_keycloak_database "$COMPOSE_CMD"
 
 ##############################################################################
 # Step 1: Wait for Keycloak to be ready
