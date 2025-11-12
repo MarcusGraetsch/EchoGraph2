@@ -46,9 +46,9 @@ elif grep -q "{{PUBLIC_IP}}" "$SCRIPT_DIR/.env" 2>/dev/null; then
 else
     # Check if .env has actual values (not empty)
     KEYCLOAK_URL=$(grep -E "^KEYCLOAK_HOSTNAME_URL=" .env | cut -d'=' -f2)
-    FRONTEND_URL=$(grep -E "^NEXT_PUBLIC_KEYCLOAK_URL=" .env | cut -d'=' -f2)
+    PUBLIC_KEYCLOAK=$(grep -E "^KEYCLOAK_PUBLIC_URL=" .env | cut -d'=' -f2)
 
-    if [ -z "$KEYCLOAK_URL" ] || [ -z "$FRONTEND_URL" ]; then
+    if [ -z "$KEYCLOAK_URL" ] || [ -z "$PUBLIC_KEYCLOAK" ]; then
         echo -e "${YELLOW}  ⚠ .env file has empty values${NC}"
         NEEDS_ENV_GENERATION=true
     else
@@ -98,13 +98,13 @@ fi
 
 # Extract and validate configured values
 KEYCLOAK_HOSTNAME=$(grep -E "^KEYCLOAK_HOSTNAME_URL=" .env | cut -d'=' -f2)
-FRONTEND_KEYCLOAK=$(grep -E "^NEXT_PUBLIC_KEYCLOAK_URL=" .env | cut -d'=' -f2)
+PUBLIC_KEYCLOAK=$(grep -E "^KEYCLOAK_PUBLIC_URL=" .env | cut -d'=' -f2)
 CONFIGURED_IP=$(echo "$KEYCLOAK_HOSTNAME" | cut -d'/' -f3 | cut -d':' -f1)
 
-if [ -z "$KEYCLOAK_HOSTNAME" ] || [ -z "$FRONTEND_KEYCLOAK" ]; then
+if [ -z "$KEYCLOAK_HOSTNAME" ] || [ -z "$PUBLIC_KEYCLOAK" ]; then
     echo -e "${RED}  ✗ .env configuration has empty values${NC}"
     echo -e "${YELLOW}  KEYCLOAK_HOSTNAME_URL: $KEYCLOAK_HOSTNAME${NC}"
-    echo -e "${YELLOW}  NEXT_PUBLIC_KEYCLOAK_URL: $FRONTEND_KEYCLOAK${NC}"
+    echo -e "${YELLOW}  KEYCLOAK_PUBLIC_URL: $PUBLIC_KEYCLOAK${NC}"
     echo -e "${YELLOW}  Try running: ./scripts/setup-env.sh manually${NC}"
     exit 1
 fi
