@@ -62,6 +62,28 @@ detect_compose_command() {
     fi
 }
 
+ensure_compose_access() {
+    local base_cmd="$1"
+
+    if [ -z "$base_cmd" ]; then
+        return 1
+    fi
+
+    if $base_cmd ps >/dev/null 2>&1; then
+        echo "$base_cmd"
+        return 0
+    fi
+
+    if command -v sudo >/dev/null 2>&1; then
+        if sudo -n $base_cmd ps >/dev/null 2>&1; then
+            echo "sudo $base_cmd"
+            return 0
+        fi
+    fi
+
+    return 1
+}
+
 ensure_keycloak_database() {
     local compose_cmd="$1"
     local pg_user="${POSTGRES_USER:-echograph}"
@@ -72,8 +94,21 @@ ensure_keycloak_database() {
 
     print_info "Ensuring Keycloak database credentials are synchronized..."
 
+    local effective_cmd="$compose_cmd"
+    if ! $compose_cmd ps >/dev/null 2>&1; then
+        local new_cmd
+        if new_cmd=$(ensure_compose_access "$compose_cmd" 2>/dev/null); then
+            effective_cmd="$new_cmd"
+        else
+            print_warning "Docker is not accessible without elevated privileges."
+            print_warning "Skipping database synchronization step."
+            print_warning "Run this script with sudo or add your user to the docker group if synchronization is required."
+            return 0
+        fi
+    fi
+
     set +e
-    $compose_cmd exec -T postgres psql -v ON_ERROR_STOP=1 \
+    $effective_cmd exec -T postgres psql -v ON_ERROR_STOP=1 \
         --username "$pg_user" --dbname "$pg_db" <<EOSQL
 DO
 $$
@@ -206,7 +241,7 @@ if [ -z "$COMPOSE_CMD" ]; then
 fi
 
 # Configuration from environment or defaults
-KEYCLOAK_URL="${KEYCLOAK_SERVER_URL:-http://localhost:8080}"
+KEYCLOAK_URL=""
 KEYCLOAK_ADMIN="${KEYCLOAK_ADMIN:-admin}"
 KEYCLOAK_ADMIN_PASSWORD="${KEYCLOAK_ADMIN_PASSWORD}"
 REALM_NAME="${KEYCLOAK_REALM:-echograph}"
@@ -216,8 +251,12 @@ CLIENT_SECRET="${KEYCLOAK_CLIENT_SECRET}"
 # Check if running in container or on host
 if [ -f "/.dockerenv" ]; then
     print_info "Running inside Docker container"
-    KEYCLOAK_URL="http://keycloak:8080"
+    KEYCLOAK_URL="${KEYCLOAK_SERVER_URL:-http://keycloak:8080}"
+else
+    KEYCLOAK_URL="${KEYCLOAK_PUBLIC_URL:-${KEYCLOAK_HOSTNAME_URL:-${KEYCLOAK_SERVER_URL:-http://localhost:8080}}}"
 fi
+
+KEYCLOAK_URL="$(strip_trailing_slash "$KEYCLOAK_URL")"
 
 print_info "Starting Keycloak initialization..."
 echo "  Keycloak URL: $KEYCLOAK_URL"
