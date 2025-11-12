@@ -111,7 +111,7 @@ ensure_keycloak_database() {
     $effective_cmd exec -T postgres psql -v ON_ERROR_STOP=1 \
         --username "$pg_user" --dbname "$pg_db" <<EOSQL
 DO
-$$
+\$\$
 DECLARE
     role_name text := '${kc_user}';
     db_name   text := '${kc_db}';
