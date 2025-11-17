@@ -132,7 +132,7 @@ BEGIN
 
     EXECUTE format('GRANT ALL PRIVILEGES ON DATABASE %I TO %I', db_name, role_name);
 END;
-$$;
+\$\$;
 EOSQL
     local status=$?
     set -e
