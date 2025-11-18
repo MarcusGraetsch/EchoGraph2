@@ -48,9 +48,10 @@ else
     fi
 fi
 
-# Validate IP format
-if ! echo "$VM_IP" | grep -E '^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$' > /dev/null; then
+# Validate IP format (allow localhost or IPv4)
+if [ "$VM_IP" != "localhost" ] && ! echo "$VM_IP" | grep -E '^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$' > /dev/null; then
     echo -e "${RED}ERROR: Invalid IP address format: $VM_IP${NC}"
+    echo -e "${YELLOW}Use either 'localhost' or a valid IPv4 address (e.g., 192.168.1.100)${NC}"
     exit 1
 fi
 
