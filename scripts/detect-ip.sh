@@ -17,6 +17,15 @@ NC='\033[0m' # No Color
 
 echo -e "${GREEN}Detecting VM IP address...${NC}\n"
 
+# Check if running in WSL2 or Docker Desktop environment
+# For local development, use localhost
+if grep -qi microsoft /proc/version 2>/dev/null || [ -f "/mnt/wsl/docker-desktop" ]; then
+    echo -e "${YELLOW}WSL2 or Docker Desktop detected!${NC}"
+    echo -e "${GREEN}Using localhost for local development${NC}\n"
+    echo "localhost"
+    exit 0
+fi
+
 # Method 1: Try to get public IPv4 from external service
 echo "Method 1: Checking public IPv4 via external service..."
 PUBLIC_IP=""
