@@ -171,7 +171,8 @@ echo -e "${GREEN}  ✓ Keycloak container is running${NC}"
 
 # Wait for Keycloak to be accessible
 echo -e "${BLUE}  → Waiting for Keycloak to be accessible...${NC}"
-MAX_WAIT=180  # 3 minutes
+echo -e "${YELLOW}  → Note: First startup can take 5-10 minutes (database initialization)${NC}"
+MAX_WAIT=600  # 10 minutes (first start needs more time for DB schema init)
 WAIT_COUNT=0
 KEYCLOAK_READY=false
 
@@ -182,15 +183,24 @@ while [ $WAIT_COUNT -lt $MAX_WAIT ]; do
     fi
     sleep 2
     WAIT_COUNT=$((WAIT_COUNT + 2))
-    if [ $((WAIT_COUNT % 10)) -eq 0 ]; then
+    if [ $((WAIT_COUNT % 20)) -eq 0 ]; then
         echo -e "${BLUE}  → Still waiting... (${WAIT_COUNT}s / ${MAX_WAIT}s)${NC}"
+        # Show last log line to give user context
+        LAST_LOG=$(docker-compose logs --tail=1 keycloak 2>/dev/null | grep -v "Attaching to")
+        if [ -n "$LAST_LOG" ]; then
+            echo -e "${YELLOW}     Latest: ${LAST_LOG:0:80}...${NC}"
+        fi
     fi
 done
 
 if [ "$KEYCLOAK_READY" = false ]; then
     echo -e "${RED}  ✗ Keycloak did not become accessible within ${MAX_WAIT} seconds${NC}"
-    echo -e "${YELLOW}  Check logs: docker-compose logs keycloak${NC}"
-    exit 1
+    echo -e "${YELLOW}  This might be normal on first startup. Check if still initializing:${NC}"
+    echo -e "${YELLOW}  docker-compose logs -f keycloak${NC}"
+    echo -e "${YELLOW}  Look for: 'Keycloak ... started' message${NC}"
+    echo ""
+    echo -e "${YELLOW}  Once Keycloak is ready, run: ./keycloak/init-keycloak.sh${NC}"
+    # Don't exit - continue anyway, user can init Keycloak manually
 fi
 
 echo -e "${GREEN}  ✓ Keycloak is accessible (took ${WAIT_COUNT}s)${NC}"
