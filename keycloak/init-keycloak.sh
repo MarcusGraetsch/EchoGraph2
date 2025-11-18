@@ -353,18 +353,21 @@ print_info "Checking if realm '$REALM_NAME' exists..."
 
 REALM_EXISTS=false
 # Use timeout command to ensure curl doesn't hang
+set +e  # Don't exit on error
 REALM_LOOKUP=$(timeout 10 curl -sf --max-time 10 --connect-timeout 5 -X GET \
     "$KEYCLOAK_URL/admin/realms/$REALM_NAME" \
     -H "Authorization: Bearer $ACCESS_TOKEN" \
     -H "Content-Type: application/json" 2>/dev/null)
 
 CURL_EXIT=$?
+set -e  # Re-enable exit on error
 
+echo ""  # Add newline for better output
 if [ $CURL_EXIT -eq 0 ] && [ -n "$REALM_LOOKUP" ]; then
     print_info "Realm '$REALM_NAME' exists - it will be updated"
     REALM_EXISTS=true
 elif [ $CURL_EXIT -eq 124 ]; then
-    print_error "Timeout while checking realm existence"
+    print_warning "Timeout while checking realm existence"
     print_info "Assuming realm does not exist - will attempt to create it"
     REALM_EXISTS=false
 else
@@ -522,9 +525,37 @@ echo "Admin Console: $KEYCLOAK_URL/admin"
 echo "  Username: $KEYCLOAK_ADMIN"
 echo "  Password: [from environment]"
 echo ""
-echo "Test User:"
+echo "Test User (Login at Frontend):"
 echo "  Username: admin"
 echo "  Password: admin (change on first login)"
 echo ""
+echo "Frontend URL: http://localhost:3000"
+echo "  Click 'Login' and use: admin / admin"
+echo ""
 print_warning "Remember to change the default admin password!"
+echo ""
+print_info "=========================================="
+print_info "Manual Configuration Check (if login fails)"
+print_info "=========================================="
+echo ""
+echo "If you get 'Invalid redirect_uri' error when logging in:"
+echo ""
+echo "1. Open Keycloak Admin Console: $KEYCLOAK_URL/admin"
+echo "   Login: $KEYCLOAK_ADMIN / [admin password]"
+echo ""
+echo "2. Switch to realm 'echograph' (dropdown top-left)"
+echo ""
+echo "3. Go to: Clients → echograph-frontend → Settings"
+echo "   - Valid redirect URIs: http://localhost:3000/*"
+echo "   - Valid post logout redirect URIs: http://localhost:3000/*"
+echo "   - Web origins: http://localhost:3000"
+echo "   - Click 'Save'"
+echo ""
+echo "4. Go to: Clients → echograph-api → Settings"
+echo "   - Valid redirect URIs: http://localhost:8000/*"
+echo "   - Web origins: http://localhost:8000"
+echo "   - Web origins: http://localhost:3000"
+echo "   - Click 'Save'"
+echo ""
+echo "5. Try login again at: http://localhost:3000"
 echo ""
