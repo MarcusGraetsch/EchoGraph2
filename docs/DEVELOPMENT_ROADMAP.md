@@ -1,5 +1,20 @@
 # EchoGraph Development Roadmap
 
+## 🎉 Recent Updates (Stand: 2025-11-19)
+
+### ✅ Completed Quick Wins
+- **Quick Fix #1**: Dashboard Statistics API Integration (COMPLETED)
+  - Added `getStatistics()` method to `lib/api.ts`
+  - Dashboard now fetches real statistics from `/api/documents/statistics/dashboard`
+  - Stats auto-refresh after successful upload
+  - Loading states added for better UX
+
+- **Quick Fix #2**: Search API Integration (COMPLETED)
+  - Removed hardcoded alert message
+  - Search now calls real API endpoint `/api/search`
+  - Results logged to console (UI pending Phase 2)
+  - Error handling implemented
+
 ## Current Status (Stand: 2025-11-18)
 
 ### ✅ Was funktioniert
@@ -529,7 +544,7 @@ frontend/src/app/dashboard/page.tsx                   (update)
 
 ## Schnelle Wins - Was Sie JETZT fixen können (1-2 Tage)
 
-### Quick Fix #1: Dashboard Stats (30 Minuten)
+### ✅ Quick Fix #1: Dashboard Stats (30 Minuten) - COMPLETED
 **Datei:** `frontend/src/app/dashboard/page.tsx`
 
 **Änderung:**
@@ -553,7 +568,7 @@ useEffect(() => {
 
 ---
 
-### Quick Fix #2: Search Alert entfernen (15 Minuten)
+### ✅ Quick Fix #2: Search Alert entfernen (15 Minuten) - COMPLETED
 **Datei:** `frontend/src/app/dashboard/page.tsx`
 
 **Änderung:** Zeile 81

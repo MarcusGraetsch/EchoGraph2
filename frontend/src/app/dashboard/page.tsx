@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
@@ -37,7 +37,37 @@ export default function Dashboard() {
   const [documentType, setDocumentType] = useState<'norm' | 'guideline'>('norm')
   const [uploadStatuses, setUploadStatuses] = useState<FileUploadStatus[]>([])
   const [isUploading, setIsUploading] = useState(false)
+  const [stats, setStats] = useState({
+    total_documents: 0,
+    total_norms: 0,
+    total_guidelines: 0,
+    total_relationships: 0,
+    pending_validations: 0,
+    approved_relationships: 0,
+    rejected_relationships: 0,
+  })
+  const [isLoadingStats, setIsLoadingStats] = useState(true)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Fetch dashboard statistics
+  const fetchStatistics = async () => {
+    try {
+      setIsLoadingStats(true)
+      const response = await documentApi.getStatistics()
+      setStats(response.data)
+    } catch (error) {
+      console.error('Failed to fetch statistics:', error)
+    } finally {
+      setIsLoadingStats(false)
+    }
+  }
+
+  // Fetch statistics on mount and when authenticated
+  useEffect(() => {
+    if (authenticated) {
+      fetchStatistics()
+    }
+  }, [authenticated])
 
   // Handle file selection
   const handleFileSelect = (files: FileList | null) => {
@@ -76,9 +106,23 @@ export default function Dashboard() {
   }
 
   // Handle search
-  const handleSearch = () => {
-    if (searchQuery.trim()) {
-      alert(`Searching for: ${searchQuery}\n\nSearch functionality will be connected to the API in the next step.`)
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) return
+
+    try {
+      const response = await documentApi.search(searchQuery)
+      console.log('Search results:', response.data)
+
+      // TODO: Phase 2 - Display search results in a proper UI
+      // For now, log to console
+      if (response.data.results && response.data.results.length > 0) {
+        alert(`Found ${response.data.results.length} results!\n\nCheck console for details.\n\n(Search results UI will be implemented in Phase 2)`)
+      } else {
+        alert('No results found. Try a different search query.')
+      }
+    } catch (error: any) {
+      console.error('Search failed:', error)
+      alert(`Search failed: ${error.response?.data?.detail || error.message}`)
     }
   }
 
@@ -153,13 +197,15 @@ export default function Dashboard() {
 
     setIsUploading(false)
 
-    // If all uploads successful, close modal after delay
+    // If all uploads successful, close modal after delay and refresh stats
     setTimeout(() => {
       const allSuccess = uploadStatuses.every(s => s.status === 'success')
       if (allSuccess) {
         setShowUploadModal(false)
         setSelectedFiles([])
         setUploadStatuses([])
+        // Refresh dashboard statistics
+        fetchStatistics()
       }
     }, 2000)
   }
@@ -230,8 +276,12 @@ export default function Dashboard() {
               <FileText className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">0</div>
-              <p className="text-xs text-muted-foreground">No documents uploaded yet</p>
+              <div className="text-2xl font-bold">
+                {isLoadingStats ? '...' : stats.total_documents}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {stats.total_documents === 0 ? 'No documents uploaded yet' : 'Uploaded documents'}
+              </p>
             </CardContent>
           </Card>
 
@@ -241,7 +291,9 @@ export default function Dashboard() {
               <AlertCircle className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">0</div>
+              <div className="text-2xl font-bold">
+                {isLoadingStats ? '...' : stats.total_norms}
+              </div>
               <p className="text-xs text-muted-foreground">Official standards</p>
             </CardContent>
           </Card>
@@ -252,7 +304,9 @@ export default function Dashboard() {
               <CheckCircle className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">0</div>
+              <div className="text-2xl font-bold">
+                {isLoadingStats ? '...' : stats.total_guidelines}
+              </div>
               <p className="text-xs text-muted-foreground">Internal policies</p>
             </CardContent>
           </Card>
@@ -263,7 +317,9 @@ export default function Dashboard() {
               <GitCompare className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">0</div>
+              <div className="text-2xl font-bold">
+                {isLoadingStats ? '...' : stats.total_relationships}
+              </div>
               <p className="text-xs text-muted-foreground">AI-detected connections</p>
             </CardContent>
           </Card>

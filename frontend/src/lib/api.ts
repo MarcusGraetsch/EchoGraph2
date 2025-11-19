@@ -81,6 +81,11 @@ export const documentApi = {
   search: async (query: string) => {
     return api.post('/search/', { query })
   },
+
+  // Get dashboard statistics
+  getStatistics: async () => {
+    return api.get('/documents/statistics/dashboard')
+  },
 }
 
 export default api
