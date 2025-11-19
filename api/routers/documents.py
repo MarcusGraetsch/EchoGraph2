@@ -135,9 +135,10 @@ async def upload_document(
 
         logger.info(f"Document uploaded successfully: {document.id} - {document.title}")
 
-        # TODO: Trigger Celery task for document processing
-        # from tasks import process_document
-        # process_document.delay(document.id)
+        # Trigger Celery task for document processing
+        from ..tasks import process_document
+        process_document.delay(document.id)
+        logger.info(f"Queued processing task for document {document.id}")
 
     except HTTPException:
         # Re-raise HTTP exceptions

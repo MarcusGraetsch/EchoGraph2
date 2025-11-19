@@ -1,49 +1,21 @@
 # EchoGraph Development Roadmap
 
-## 🎉 Recent Updates (Stand: 2025-11-19)
+## 🎉 Latest Updates (Stand: 2025-11-19)
 
-### ✅ Completed Quick Wins
-- **Quick Fix #1**: Dashboard Statistics API Integration (COMPLETED)
-  - Added `getStatistics()` method to `lib/api.ts`
-  - Dashboard now fetches real statistics from `/api/documents/statistics/dashboard`
-  - Stats auto-refresh after successful upload
-  - Loading states added for better UX
-
-- **Quick Fix #2**: Search API Integration (COMPLETED)
-  - Removed hardcoded alert message
-  - Search now calls real API endpoint `/api/search`
-  - Results logged to console (UI pending Phase 2)
-  - Error handling implemented
-
-### ✅ Phase 1.1: Qdrant Integration (COMPLETED)
-- **Created `processing/vector_store.py`** - Comprehensive Qdrant vector database integration
-  - Collection management (create, delete, health check)
-  - Chunk-level embeddings storage with metadata
-  - Document-level embeddings storage
-  - Semantic search with cosine similarity
-  - Hybrid search (vector + metadata filters)
-  - Cross-document similarity detection for relationship discovery
-  - Batch operations for performance
-
-- **Embedding Strategy**: Option C - Hybrid Approach
-  - sentence-transformers for embeddings (local, free, fast)
-  - LLM (GPT-4/Claude) for relationship classification (to be implemented)
-
-- **Collections Schema**:
-  - `documents` collection: Document-level embeddings (768-dim, cosine distance)
-  - `chunks` collection: Chunk-level embeddings with metadata (document_id, chunk_text, document_type, etc.)
-
-- **Testing**:
-  - Created `processing/test_vector_store.py` - Manual test script
-  - Created `tests/test_vector_store.py` - Full pytest unit tests
-  - All tests passing ✅
+### ✅ Phase 1.2: Document Processing Pipeline (COMPLETED)
+- **Implemented full Celery task** for automatic document processing
+- **End-to-end pipeline**: Upload → Extract → Chunk → Embed → Store → READY
+- **PostgreSQL integration**: Stores document chunks with metadata
+- **Qdrant integration**: Stores 768-dim embeddings for semantic search
+- **Status tracking**: UPLOADING → EXTRACTING → ANALYZING → EMBEDDING → READY
+- **Error handling**: Status updates to ERROR on failures
+- **Automatic triggering**: Task queues on upload, no manual intervention needed
 
 ## Current Status (Stand: 2025-11-18)
 
 ### ✅ Was funktioniert
 
-**Infrastructure:**
-- PostgreSQL mit pgvector
+
 - Redis für Celery
 - MinIO Object Storage
 - Qdrant Vector Database (Container läuft)
@@ -112,21 +84,20 @@
 
 **Ziel:** Dokumente vollständig verarbeiten - von Upload bis Embeddings in Qdrant
 
-#### 1.1 Qdrant Integration (2-3 Tage) ✅ COMPLETED
+#### 1.1 Qdrant Integration (2-3 Tage)
 **Priorität:** CRITICAL ⚠️
 
 **Aufgaben:**
-- [x] Qdrant Python Client einrichten
-- [x] Neues Modul: `processing/vector_store.py`
+- [ ] Qdrant Python Client einrichten
+- [ ] Neues Modul: `processing/vector_store.py`
   - Collection Management (create, delete)
   - Vector Upload (batch insert)
   - Semantic Search (similarity search)
   - Hybrid Search (vector + metadata filters)
-  - Cross-document similarity detection
-- [x] Qdrant Collections Schema definieren:
+- [ ] Qdrant Collections Schema definieren:
   - `documents` collection (document-level embeddings)
   - `chunks` collection (chunk-level embeddings mit metadata)
-- [x] Unit Tests für Qdrant Integration
+- [ ] Unit Tests für Qdrant Integration
 
 **Dateien:**
 ```
@@ -568,7 +539,7 @@ frontend/src/app/dashboard/page.tsx                   (update)
 
 ## Schnelle Wins - Was Sie JETZT fixen können (1-2 Tage)
 
-### ✅ Quick Fix #1: Dashboard Stats (30 Minuten) - COMPLETED
+### Quick Fix #1: Dashboard Stats (30 Minuten)
 **Datei:** `frontend/src/app/dashboard/page.tsx`
 
 **Änderung:**
@@ -592,7 +563,7 @@ useEffect(() => {
 
 ---
 
-### ✅ Quick Fix #2: Search Alert entfernen (15 Minuten) - COMPLETED
+### Quick Fix #2: Search Alert entfernen (15 Minuten)
 **Datei:** `frontend/src/app/dashboard/page.tsx`
 
 **Änderung:** Zeile 81
