@@ -104,8 +104,8 @@ class VectorStore:
         Args:
             vector_size: Dimensionality of embedding vectors (default: 768 for sentence-transformers)
         """
-        # Create documents collection
-        if not self.client.collection_exists(self.documents_collection):
+        # Create documents collection (ignore if already exists)
+        try:
             self.client.create_collection(
                 collection_name=self.documents_collection,
                 vectors_config=VectorParams(
@@ -114,11 +114,16 @@ class VectorStore:
                 )
             )
             logger.info(f"Created collection: {self.documents_collection}")
-        else:
-            logger.info(f"Collection already exists: {self.documents_collection}")
+        except Exception as e:
+            # Collection likely already exists (409 Conflict)
+            if "already exists" in str(e).lower() or "409" in str(e):
+                logger.info(f"Collection already exists: {self.documents_collection}")
+            else:
+                logger.error(f"Failed to create collection {self.documents_collection}: {e}")
+                raise
 
-        # Create chunks collection (main collection for semantic search)
-        if not self.client.collection_exists(self.chunks_collection):
+        # Create chunks collection (ignore if already exists)
+        try:
             self.client.create_collection(
                 collection_name=self.chunks_collection,
                 vectors_config=VectorParams(
@@ -127,8 +132,13 @@ class VectorStore:
                 )
             )
             logger.info(f"Created collection: {self.chunks_collection}")
-        else:
-            logger.info(f"Collection already exists: {self.chunks_collection}")
+        except Exception as e:
+            # Collection likely already exists (409 Conflict)
+            if "already exists" in str(e).lower() or "409" in str(e):
+                logger.info(f"Collection already exists: {self.chunks_collection}")
+            else:
+                logger.error(f"Failed to create collection {self.chunks_collection}: {e}")
+                raise
 
 
     def delete_collection(self, collection_name: str) -> bool:
@@ -141,11 +151,12 @@ class VectorStore:
         Returns:
             True if deleted, False if didn't exist
         """
-        if self.client.collection_exists(collection_name):
+        try:
+            self.client.get_collection(collection_name)
             self.client.delete_collection(collection_name)
             logger.info(f"Deleted collection: {collection_name}")
             return True
-        else:
+        except Exception:
             logger.warning(f"Collection does not exist: {collection_name}")
             return False
 
@@ -198,9 +209,9 @@ class VectorStore:
             if "document_id" not in meta:
                 raise ValueError(f"Metadata for chunk {chunk_id} missing 'document_id'")
 
-            # Store chunk_id as string (Qdrant requires string or int IDs)
+            # Qdrant accepts int or UUID as ID (version 1.7.0)
             point = PointStruct(
-                id=str(chunk_id),
+                id=chunk_id,  # Use int directly, not string
                 vector=embedding,
                 payload=meta
             )
@@ -233,7 +244,7 @@ class VectorStore:
             metadata: Document metadata (title, type, etc.)
         """
         point = PointStruct(
-            id=str(document_id),
+            id=document_id,  # Use int directly
             vector=embedding,
             payload=metadata
         )
@@ -314,7 +325,7 @@ class VectorStore:
         results = []
         for hit in search_results:
             result = SearchResult(
-                id=str(hit.id),
+                id=str(hit.id),  # Convert to string for consistency
                 score=hit.score,
                 payload=hit.payload or {}
             )
@@ -499,7 +510,7 @@ class VectorStore:
         try:
             self.client.delete(
                 collection_name=self.documents_collection,
-                points_selector=[str(document_id)]
+                points_selector=[document_id]  # Use int directly
             )
         except Exception as e:
             logger.warning(f"Could not delete document embedding: {e}")
@@ -517,17 +528,20 @@ class VectorStore:
         Returns:
             Collection info dict with vector count, etc.
         """
-        info = self.client.get_collection(collection_name)
-        return {
-            "name": collection_name,
-            "vectors_count": info.vectors_count,
-            "points_count": info.points_count,
-            "status": info.status,
-            "config": {
-                "vector_size": info.config.params.vectors.size,
-                "distance": info.config.params.vectors.distance.name
+        try:
+            info = self.client.get_collection(collection_name)
+            return {
+                "name": collection_name,
+                "vectors_count": getattr(info, 'vectors_count', 0),
+                "points_count": getattr(info, 'points_count', 0),
+                "status": str(getattr(info, 'status', 'unknown'))
             }
-        }
+        except Exception as e:
+            logger.error(f"Failed to get collection info: {e}")
+            return {
+                "name": collection_name,
+                "error": str(e)
+            }
 
 
     def health_check(self) -> bool:
@@ -538,16 +552,19 @@ class VectorStore:
             True if healthy, False otherwise
         """
         try:
-            # Check collections exist
-            chunks_exist = self.client.collection_exists(self.chunks_collection)
-            docs_exist = self.client.collection_exists(self.documents_collection)
+            # Simple check: just try to get collections list
+            collections = self.client.get_collections()
+            collection_names = [c.name for c in collections.collections]
 
-            if not chunks_exist or not docs_exist:
-                logger.warning("Qdrant collections not initialized")
+            chunks_exist = self.chunks_collection in collection_names
+            docs_exist = self.documents_collection in collection_names
+
+            if chunks_exist and docs_exist:
+                logger.info("Qdrant health check passed")
+                return True
+            else:
+                logger.warning(f"Missing collections. Found: {collection_names}")
                 return False
-
-            logger.info("Qdrant health check passed")
-            return True
         except Exception as e:
             logger.error(f"Qdrant health check failed: {e}")
             return False

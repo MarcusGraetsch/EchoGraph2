@@ -13,8 +13,12 @@ def main():
     print("🔍 Testing Qdrant Vector Store Integration\n")
 
     # Initialize vector store
-    print("1. Connecting to Qdrant...")
-    store = VectorStore(host="localhost", port=6333)
+    # Note: Use "qdrant" when running inside Docker, "localhost" when running locally
+    import os
+    qdrant_host = os.getenv("QDRANT_HOST", "localhost")
+
+    print(f"1. Connecting to Qdrant at {qdrant_host}:6333...")
+    store = VectorStore(host=qdrant_host, port=6333)
     print("   ✅ Connected!")
 
     # Initialize collections
@@ -35,10 +39,12 @@ def main():
     print("\n4. Getting collection info...")
     chunks_info = store.get_collection_info("chunks")
     print(f"   Chunks collection:")
-    print(f"     - Vectors: {chunks_info['vectors_count']}")
-    print(f"     - Points: {chunks_info['points_count']}")
-    print(f"     - Vector size: {chunks_info['config']['vector_size']}")
-    print(f"     - Distance: {chunks_info['config']['distance']}")
+    if 'error' in chunks_info:
+        print(f"     - Error: {chunks_info['error']}")
+    else:
+        print(f"     - Vectors: {chunks_info.get('vectors_count', 0)}")
+        print(f"     - Points: {chunks_info.get('points_count', 0)}")
+        print(f"     - Status: {chunks_info.get('status', 'unknown')}")
 
     # Test storing embeddings
     print("\n5. Testing embedding storage...")
