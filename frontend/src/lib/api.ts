@@ -21,8 +21,13 @@ export const setKeycloakToken = (token: string | null) => {
 api.interceptors.request.use((config) => {
   // Use Keycloak token if available, otherwise fall back to localStorage
   const token = keycloakToken || localStorage.getItem('token')
+  console.log('🌐 API Request:', config.url)
+  console.log('🔑 Token available:', token ? 'YES' : 'NO')
   if (token) {
+    console.log('🔑 Token length:', token.length)
     config.headers.Authorization = `Bearer ${token}`
+  } else {
+    console.warn('⚠️ No token available for request!')
   }
   return config
 })

@@ -118,9 +118,14 @@ export const KeycloakProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
         if (authenticated) {
           const token = kc.token || null
+          console.log('🔐 Keycloak authenticated! Token:', token ? 'Present' : 'Missing')
+          console.log('🔐 Token length:', token?.length)
           setToken(token)
           setKeycloakToken(token)
           setUser(extractUser(kc))
+          console.log('🔐 Token set in API client')
+        } else {
+          console.log('❌ Keycloak not authenticated')
         }
 
         // Set up token refresh
