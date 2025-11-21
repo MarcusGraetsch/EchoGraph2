@@ -174,25 +174,17 @@ frontend/src/lib/api.ts                (bereits vorhanden)
 ---
 
 #### 1.4 Document List View (2-3 Tage)
-**Priorität:** HIGH
+**Priorität:** HIGH — **Status:** ✅ Done
 
-**Aufgaben:**
-- [ ] Neue Seite: `frontend/src/app/documents/page.tsx`
-- [ ] DocumentTable Component
-  - Spalten: Name, Type, Status, Upload Date, Actions
-  - Pagination
-  - Filtering (by type, status)
-  - Sorting
-- [ ] Integration mit `GET /api/documents`
-- [ ] Delete Funktion
-- [ ] View/Download Funktion
+**Ergebnisse:**
+- Neue Seite `frontend/src/app/documents/page.tsx` mit Tabelle (Name, Typ, Status, Upload-Datum, Aktionen).
+- Filterbar nach Type/Status + Suche; Paginierung und konfigurierbare Page Size.
+- Aktionen: View (API-Metadaten öffnen), Download-Link wenn absolute File-URL vorhanden, Delete (ruft API-Delete auf).
+- Nutzt React Query inkl. Refresh-Button und Keep-Previous-Data für flüssige Navigation.
 
 **Dateien:**
 ```
-frontend/src/app/documents/page.tsx           (neu)
-frontend/src/components/DocumentTable.tsx     (neu)
-frontend/src/components/DocumentRow.tsx       (neu)
-frontend/src/components/DocumentFilter.tsx    (neu)
+frontend/src/app/documents/page.tsx    (neu)
 ```
 
 **Akzeptanzkriterien:**
