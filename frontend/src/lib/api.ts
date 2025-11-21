@@ -82,14 +82,75 @@ export const documentApi = {
     return api.get(`/documents/${id}`)
   },
 
-  // Search documents
-  search: async (query: string) => {
-    return api.post('/search/', { query })
+  // Search documents (semantic search)
+  search: async (
+    query: string,
+    options?: {
+      document_type?: 'norm' | 'guideline'
+      limit?: number
+      threshold?: number
+    }
+  ) => {
+    return api.post('/search/', {
+      query,
+      document_type: options?.document_type,
+      limit: options?.limit || 20,
+      threshold: options?.threshold || 0.5,
+    })
   },
 
   // Get dashboard statistics
   getStatistics: async () => {
     return api.get('/documents/statistics/dashboard')
+  },
+
+  // Delete a document
+  delete: async (id: number) => {
+    return api.delete(`/documents/${id}`)
+  },
+}
+
+// Relationships API functions
+export const relationshipsApi = {
+  // Get all relationships for a document
+  getByDocument: async (documentId: number, validationStatus?: string) => {
+    const params = validationStatus ? `?validation_status=${validationStatus}` : ''
+    return api.get(`/relationships/document/${documentId}${params}`)
+  },
+
+  // Get a single relationship by ID
+  get: async (id: number) => {
+    return api.get(`/relationships/${id}`)
+  },
+
+  // Compare multiple documents
+  compare: async (documentIds: number[], threshold: number = 0.7) => {
+    return api.post('/relationships/compare', {
+      document_ids: documentIds,
+      threshold,
+    })
+  },
+
+  // Get pending relationships for review
+  getPending: async (limit: number = 50) => {
+    return api.get(`/relationships/pending/review?limit=${limit}`)
+  },
+
+  // Validate a relationship
+  validate: async (
+    relationshipId: number,
+    validationStatus: 'approved' | 'rejected' | 'pending_review',
+    notes?: string
+  ) => {
+    return api.post(`/relationships/${relationshipId}/validate`, {
+      validation_status: validationStatus,
+      validation_notes: notes,
+    })
+  },
+
+  // Delete a relationship
+  delete: async (id: number) => {
+    return api.delete(`/relationships/${id}`)
   },
 }
 

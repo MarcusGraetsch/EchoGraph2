@@ -109,3 +109,19 @@ export interface User {
   created_at: string
   last_login?: string
 }
+
+// Search types
+export interface SearchResult {
+  document_id: number
+  document_title: string
+  document_type: DocumentType
+  chunk_id: number
+  chunk_text: string
+  similarity: number
+}
+
+export interface SearchResponse {
+  query: string
+  results: SearchResult[]
+  total: number
+}

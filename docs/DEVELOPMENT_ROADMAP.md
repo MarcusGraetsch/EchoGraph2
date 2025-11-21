@@ -1,8 +1,42 @@
 # EchoGraph Development Roadmap
 
-## 🎉 Latest Updates (Stand: 2025-11-19)
+## 🎉 Latest Updates (Stand: 2025-11-21)
 
-### ✅ Phase 1.2: Document Processing Pipeline (COMPLETED)
+### ✅ Phase 2: Semantic Search & UI (COMPLETED - 2025-11-21)
+- **Semantic Search Backend**: Full vector similarity search using Qdrant
+  - Query embedding generation with `EmbeddingGenerator`
+  - Similarity search with configurable threshold
+  - Document type filtering support
+  - Fallback to text search if vector search unavailable
+  - Health check endpoint for monitoring
+- **Search Results UI**: New `SearchResults.tsx` component
+  - Modal with results ranked by similarity
+  - Document type filtering (All/Norms/Guidelines)
+  - Expandable chunk previews
+  - Color-coded similarity scores
+- **Dashboard Integration**: Search opens proper results modal
+
+### ✅ Phase 3.1: Relationship Extraction (COMPLETED - 2025-11-21)
+- **`extract_relationships()` Celery Task**: Full implementation
+  - Cross-document chunk similarity detection via Qdrant
+  - Aggregation from chunk-level to document-level relationships
+  - Intelligent relationship type classification:
+    - norm → guideline: COMPLIANCE
+    - guideline → norm: REFERENCE
+    - norm → norm: SIMILAR/SUPERSEDES
+  - Confidence scoring and summary generation
+  - Auto-triggers after document processing
+  - Duplicate prevention
+
+### ✅ Phase 4.2: Document Comparison UI (COMPLETED - 2025-11-21)
+- **`DocumentCompare.tsx` Component**: Full comparison interface
+  - Multi-document selection (up to 5)
+  - Confidence threshold slider
+  - Visual relationship diagrams
+  - Expandable details with matched sections
+  - Integration with compare API endpoint
+
+### ✅ Phase 1.2: Document Processing Pipeline (COMPLETED - 2025-11-19)
 - **Implemented full Celery task** for automatic document processing
 - **End-to-end pipeline**: Upload → Extract → Chunk → Embed → Store → READY
 - **PostgreSQL integration**: Stores document chunks with metadata
@@ -509,22 +543,24 @@ frontend/src/app/dashboard/page.tsx                   (update)
 
 ## Prioritäten-Matrix
 
-### MUST HAVE (Phase 1 + 2)
-1. ✅ Qdrant Integration
-2. ✅ Document Processing Pipeline
-3. ✅ Dashboard Stats API Integration
-4. ✅ Document List View
-5. ✅ Semantic Search (Backend + Frontend)
+### MUST HAVE (Phase 1 + 2) - ✅ ALL COMPLETED
+1. ✅ Qdrant Integration (2025-11-18)
+2. ✅ Document Processing Pipeline (2025-11-19)
+3. ✅ Dashboard Stats API Integration (2025-11-19)
+4. ✅ Document List View (2025-11-21)
+5. ✅ Semantic Search Backend (2025-11-21)
+6. ✅ Search Results UI (2025-11-21)
 
-### SHOULD HAVE (Phase 3)
-6. ✅ Relationship Detection
-7. ✅ Relationship Visualization
-8. ✅ Validation Queue
+### SHOULD HAVE (Phase 3) - ✅ PARTIALLY COMPLETED
+7. ✅ Relationship Extraction Task (2025-11-21)
+8. ✅ Document Comparison UI (2025-11-21)
+9. ⏳ Validation Queue UI (pending)
+10. ⏳ Relationship Visualization Graph (pending)
 
 ### NICE TO HAVE (Phase 4 + 5)
-9. ✅ Document Comparison
-10. ✅ WebSocket Real-time Updates
-11. ✅ Dashboard Charts
+11. ⏳ WebSocket Real-time Updates
+12. ⏳ Dashboard Charts
+13. ⏳ Export Functionality (PDF/CSV)
 
 ---
 
@@ -612,20 +648,32 @@ process_document.delay(document.id)
 
 ---
 
-## Nächste Schritte - Was soll ich JETZT tun?
+## Nächste Schritte - Was ist noch zu tun?
 
-**Option A: Quick Wins (1-2 Tage)**
-→ Ich fixe die 3 Quick Fixes oben
-→ Dashboard Stats + Search API Integration
-→ Sie sehen sofort Verbesserungen
+### ✅ Completed (2025-11-21)
+- Semantic Search (Backend + Frontend)
+- Relationship Extraction Celery Task
+- Search Results UI Component
+- Document Comparison UI Component
 
-**Option B: Phase 1 komplett (2-3 Wochen)**
-→ Ich implementiere Qdrant Integration + Document Processing
-→ Dann funktioniert die komplette Document Pipeline
-→ Upload → Processing → Embeddings → READY
+### ⏳ Remaining Tasks
 
-**Option C: Individuell**
-→ Sie sagen mir welche Features am wichtigsten sind
-→ Ich priorisiere entsprechend
+**High Priority:**
+1. **Validation Queue UI** - Review and approve/reject detected relationships
+2. **Relationship Visualization Graph** - Network graph showing document connections
+3. **Document Detail Page** - Show document with its relationships
 
-**Welche Option bevorzugen Sie?**
+**Medium Priority:**
+4. **WebSocket Real-time Updates** - Progress tracking during processing
+5. **Dashboard Charts** - Visual analytics with Recharts
+
+**Low Priority:**
+6. **Export Functionality** - PDF/CSV reports
+7. **Graph Visualization** - D3.js or React Flow network graph
+
+### Current Project Status: **MVP Phase 2 Complete**
+- Core document processing: ✅ Working
+- Semantic search: ✅ Working
+- Relationship detection: ✅ Working
+- Basic comparison UI: ✅ Working
+- Human validation workflow: ⏳ Pending

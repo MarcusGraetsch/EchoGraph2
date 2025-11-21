@@ -7,6 +7,65 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Phase 2.1: Semantic Search Implementation** (2025-11-21)
+  - Implemented vector similarity search in `api/routers/search.py` using Qdrant
+  - Generates embeddings for search queries using `EmbeddingGenerator`
+  - Returns results ranked by semantic similarity score (0.0-1.0)
+  - Supports document type filtering (norm/guideline)
+  - Includes fallback to text-based search if vector search fails
+  - Added `/search/health` endpoint for monitoring search subsystem health
+  - Lazy-loaded singleton pattern for embedding model to optimize memory
+
+- **Phase 3.1: Relationship Extraction Celery Task** (2025-11-21)
+  - Fully implemented `extract_relationships()` task in `api/tasks.py`
+  - Uses `VectorStore.find_cross_document_similarities()` for chunk-level matching
+  - Aggregates chunk similarities to document-level relationships
+  - Intelligent relationship type classification:
+    - norm → guideline: `COMPLIANCE` (guideline implements norm)
+    - guideline → norm: `REFERENCE` (guideline references norm)
+    - norm → norm: `SIMILAR` or `SUPERSEDES` (based on similarity/version)
+    - guideline → guideline: `SIMILAR`
+  - Stores relationships with confidence scores, summaries, and matched chunk details
+  - Auto-triggers relationship extraction after document processing completes
+  - Prevents duplicate relationships with existence check
+
+- **Phase 2.2: Search Results UI Component** (2025-11-21)
+  - New `frontend/src/components/SearchResults.tsx` modal component
+  - Displays search results with document title, type, chunk text, and similarity score
+  - Filter results by document type (All/Norms/Guidelines)
+  - Expandable chunk text preview for long content
+  - Loading, error, and empty states with appropriate UI feedback
+  - Click handler to navigate to document details
+  - Color-coded similarity scores (green >80%, yellow >60%, orange <60%)
+
+- **Phase 4.2: Document Compare UI Component** (2025-11-21)
+  - New `frontend/src/components/DocumentCompare.tsx` modal component
+  - Select up to 5 documents for relationship comparison
+  - Adjustable confidence threshold slider (0-100%)
+  - Visual connection diagram showing source → target relationships
+  - Displays relationship type, confidence, and validation status
+  - Expandable details showing matched chunks and sections
+  - Relationship type badges with color coding
+  - Integrated with `POST /api/relationships/compare` endpoint
+
+- **Frontend API Client Enhancements** (2025-11-21)
+  - Added `relationshipsApi` in `frontend/src/lib/api.ts`:
+    - `getByDocument()` - Get all relationships for a document
+    - `compare()` - Compare multiple documents
+    - `getPending()` - Get pending relationships for review
+    - `validate()` - Validate/reject a relationship
+    - `delete()` - Delete a relationship
+  - Enhanced `documentApi.search()` with options for document_type, limit, threshold
+  - Added TypeScript types: `SearchResult`, `SearchResponse` in `frontend/src/types/index.ts`
+
+- **Dashboard Integration** (2025-11-21)
+  - Search now opens proper SearchResults modal instead of alert
+  - Added document type filter dropdown to search interface
+  - Relationships stats card is now clickable - opens DocumentCompare modal
+  - Loading state shown during search with spinner
+  - Visual hint "Click to compare documents" on Relationships card
+
 ### Fixed
 - **CRITICAL FIX #9 - DEPLOYMENT SUCCESS**: Missing StorageClient import - API now starts successfully! 🎉
   - **Root cause**: `api/routers/documents.py` line 30 instantiated `StorageClient()` without importing it

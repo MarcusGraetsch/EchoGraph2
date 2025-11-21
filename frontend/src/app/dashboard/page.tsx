@@ -20,6 +20,9 @@ import {
 } from 'lucide-react'
 import { documentApi } from '@/lib/api'
 import { useKeycloak } from '@/lib/keycloak'
+import SearchResults from '@/components/SearchResults'
+import DocumentCompare from '@/components/DocumentCompare'
+import { SearchResponse, SearchResult } from '@/types'
 
 interface FileUploadStatus {
   file: File
@@ -39,6 +42,16 @@ export default function Dashboard() {
   const [uploadStatuses, setUploadStatuses] = useState<FileUploadStatus[]>([])
   const [isUploading, setIsUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Search state
+  const [searchResults, setSearchResults] = useState<SearchResponse | null>(null)
+  const [showSearchResults, setShowSearchResults] = useState(false)
+  const [isSearching, setIsSearching] = useState(false)
+  const [searchError, setSearchError] = useState<string | null>(null)
+  const [searchDocType, setSearchDocType] = useState<'norm' | 'guideline' | undefined>(undefined)
+
+  // Document comparison state
+  const [showCompare, setShowCompare] = useState(false)
 
   // Dashboard statistics (auto-refresh every 30s)
   const {
@@ -98,21 +111,30 @@ export default function Dashboard() {
   const handleSearch = async () => {
     if (!searchQuery.trim()) return
 
-    try {
-      const response = await documentApi.search(searchQuery)
-      console.log('Search results:', response.data)
+    setIsSearching(true)
+    setSearchError(null)
+    setShowSearchResults(true)
 
-      // TODO: Phase 2 - Display search results in a proper UI
-      // For now, log to console
-      if (response.data.results && response.data.results.length > 0) {
-        alert(`Found ${response.data.results.length} results!\n\nCheck console for details.\n\n(Search results UI will be implemented in Phase 2)`)
-      } else {
-        alert('No results found. Try a different search query.')
-      }
+    try {
+      const response = await documentApi.search(searchQuery, {
+        document_type: searchDocType,
+        limit: 20,
+        threshold: 0.5,
+      })
+      console.log('Search results:', response.data)
+      setSearchResults(response.data)
     } catch (error: any) {
       console.error('Search failed:', error)
-      alert(`Search failed: ${error.response?.data?.detail || error.message}`)
+      setSearchError(error.response?.data?.detail || error.message || 'Search failed')
+    } finally {
+      setIsSearching(false)
     }
+  }
+
+  // Handle search result click
+  const handleSearchResultClick = (result: SearchResult) => {
+    // Navigate to document or open document detail
+    window.open(`/documents/${result.document_id}`, '_blank')
   }
 
   // Handle settings
@@ -300,7 +322,10 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card
+            className="cursor-pointer hover:bg-muted/50 transition-colors"
+            onClick={() => setShowCompare(true)}
+          >
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Relationships</CardTitle>
               <GitCompare className="h-4 w-4 text-muted-foreground" />
@@ -310,6 +335,7 @@ export default function Dashboard() {
                 {isLoadingStats ? '...' : stats?.total_relationships ?? 0}
               </div>
               <p className="text-xs text-muted-foreground">AI-detected connections</p>
+              <p className="text-xs text-primary mt-1">Click to compare documents</p>
             </CardContent>
           </Card>
         </div>
@@ -385,9 +411,27 @@ export default function Dashboard() {
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                 />
-                <Button className="w-full" onClick={handleSearch}>
-                  <Search className="h-4 w-4 mr-2" />
-                  Search
+                <select
+                  className="w-full px-4 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-ring text-sm"
+                  value={searchDocType || ''}
+                  onChange={(e) => setSearchDocType(e.target.value as 'norm' | 'guideline' | undefined || undefined)}
+                >
+                  <option value="">All document types</option>
+                  <option value="norm">Norms & Regulations</option>
+                  <option value="guideline">Company Guidelines</option>
+                </select>
+                <Button className="w-full" onClick={handleSearch} disabled={isSearching}>
+                  {isSearching ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Searching...
+                    </>
+                  ) : (
+                    <>
+                      <Search className="h-4 w-4 mr-2" />
+                      Search
+                    </>
+                  )}
                 </Button>
               </div>
             </CardContent>
@@ -606,6 +650,24 @@ export default function Dashboard() {
           </div>
         </div>
       )}
+
+      {/* Search Results Modal */}
+      {showSearchResults && (
+        <SearchResults
+          results={searchResults}
+          isLoading={isSearching}
+          error={searchError}
+          onClose={() => {
+            setShowSearchResults(false)
+            setSearchResults(null)
+            setSearchError(null)
+          }}
+          onResultClick={handleSearchResultClick}
+        />
+      )}
+
+      {/* Document Compare Modal */}
+      {showCompare && <DocumentCompare onClose={() => setShowCompare(false)} />}
     </div>
   )
 }
