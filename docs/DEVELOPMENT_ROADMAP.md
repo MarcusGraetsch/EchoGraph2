@@ -153,18 +153,17 @@ Upload → MinIO → DB Record → Celery Task
 ---
 
 #### 1.3 Dashboard Statistics API Integration (1 Tag)
-**Priorität:** HIGH
+**Priorität:** HIGH — **Status:** ✅ Done
 
-**Aufgaben:**
-- [ ] Frontend: `GET /api/documents/statistics/dashboard` aufrufen
-- [ ] Dashboard State Management (React Query oder SWR)
-- [ ] Loading States & Error Handling
-- [ ] Auto-Refresh alle 30 Sekunden
+**Ergebnisse:**
+- Frontend ruft `GET /api/documents/statistics/dashboard` via React Query.
+- Auto-Refresh alle 30 Sekunden, manuelles Refetch nach Uploads.
+- Loading-, Refresh- und Error-States im UI sichtbar.
 
 **Dateien:**
 ```
 frontend/src/app/dashboard/page.tsx    (update)
-frontend/src/lib/api.ts                (update)
+frontend/src/lib/api.ts                (bereits vorhanden)
 ```
 
 **Akzeptanzkriterien:**

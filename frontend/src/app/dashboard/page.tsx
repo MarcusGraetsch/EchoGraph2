@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
@@ -37,37 +38,25 @@ export default function Dashboard() {
   const [documentType, setDocumentType] = useState<'norm' | 'guideline'>('norm')
   const [uploadStatuses, setUploadStatuses] = useState<FileUploadStatus[]>([])
   const [isUploading, setIsUploading] = useState(false)
-  const [stats, setStats] = useState({
-    total_documents: 0,
-    total_norms: 0,
-    total_guidelines: 0,
-    total_relationships: 0,
-    pending_validations: 0,
-    approved_relationships: 0,
-    rejected_relationships: 0,
-  })
-  const [isLoadingStats, setIsLoadingStats] = useState(true)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Fetch dashboard statistics
-  const fetchStatistics = async () => {
-    try {
-      setIsLoadingStats(true)
+  // Dashboard statistics (auto-refresh every 30s)
+  const {
+    data: stats,
+    isLoading: isLoadingStats,
+    isFetching: isFetchingStats,
+    error: statsError,
+    refetch: refetchStats,
+  } = useQuery({
+    queryKey: ['dashboard-statistics'],
+    queryFn: async () => {
       const response = await documentApi.getStatistics()
-      setStats(response.data)
-    } catch (error) {
-      console.error('Failed to fetch statistics:', error)
-    } finally {
-      setIsLoadingStats(false)
-    }
-  }
-
-  // Fetch statistics on mount and when authenticated
-  useEffect(() => {
-    if (authenticated) {
-      fetchStatistics()
-    }
-  }, [authenticated])
+      return response.data
+    },
+    enabled: authenticated,
+    refetchInterval: 30_000,
+    refetchOnMount: true,
+  })
 
   // Handle file selection
   const handleFileSelect = (files: FileList | null) => {
@@ -205,7 +194,7 @@ export default function Dashboard() {
         setSelectedFiles([])
         setUploadStatuses([])
         // Refresh dashboard statistics
-        fetchStatistics()
+        refetchStats()
       }
     }, 2000)
   }
@@ -277,10 +266,10 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {isLoadingStats ? '...' : stats.total_documents}
+                {isLoadingStats ? '...' : stats?.total_documents ?? 0}
               </div>
               <p className="text-xs text-muted-foreground">
-                {stats.total_documents === 0 ? 'No documents uploaded yet' : 'Uploaded documents'}
+                {stats?.total_documents === 0 ? 'No documents uploaded yet' : 'Uploaded documents'}
               </p>
             </CardContent>
           </Card>
@@ -292,7 +281,7 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {isLoadingStats ? '...' : stats.total_norms}
+                {isLoadingStats ? '...' : stats?.total_norms ?? 0}
               </div>
               <p className="text-xs text-muted-foreground">Official standards</p>
             </CardContent>
@@ -305,7 +294,7 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {isLoadingStats ? '...' : stats.total_guidelines}
+                {isLoadingStats ? '...' : stats?.total_guidelines ?? 0}
               </div>
               <p className="text-xs text-muted-foreground">Internal policies</p>
             </CardContent>
@@ -318,12 +307,24 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {isLoadingStats ? '...' : stats.total_relationships}
+                {isLoadingStats ? '...' : stats?.total_relationships ?? 0}
               </div>
               <p className="text-xs text-muted-foreground">AI-detected connections</p>
             </CardContent>
           </Card>
         </div>
+
+        {/* Stats state */}
+        {statsError && (
+          <div className="mb-4 text-sm text-red-600">
+            Failed to load statistics. Please retry.
+          </div>
+        )}
+        {isFetchingStats && !isLoadingStats && (
+          <div className="mb-4 text-sm text-muted-foreground">
+            Refreshing statistics…
+          </div>
+        )}
 
         {/* Quick Actions */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
