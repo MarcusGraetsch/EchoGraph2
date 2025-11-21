@@ -42,7 +42,7 @@ export default function DocumentsPage() {
   })
   const [searchInput, setSearchInput] = useState('')
 
-  const { data, isLoading, isFetching } = useQuery({
+  const { data, isLoading, isFetching, isPlaceholderData } = useQuery({
     queryKey: ['documents', { page, pageSize, filters }],
     queryFn: () =>
       documentsService.list({
@@ -52,7 +52,7 @@ export default function DocumentsPage() {
         status: filters.status,
         search: filters.search,
       }),
-    keepPreviousData: true,
+    placeholderData: (previousData) => previousData,
     enabled: authenticated,
   })
 

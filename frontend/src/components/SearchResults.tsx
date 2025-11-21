@@ -1,8 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import Link from 'next/link'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import {
   FileText,
@@ -140,32 +138,6 @@ export default function SearchResults({
     return r.document_type === filterType
   })
 
-  // Group results by document
-  const groupedByDocument = filteredResults?.reduce(
-    (acc, result) => {
-      const key = result.document_id
-      if (!acc[key]) {
-        acc[key] = {
-          document_id: result.document_id,
-          document_title: result.document_title,
-          document_type: result.document_type,
-          chunks: [],
-        }
-      }
-      acc[key].chunks.push(result)
-      return acc
-    },
-    {} as Record<
-      number,
-      {
-        document_id: number
-        document_title: string
-        document_type: DocumentType
-        chunks: SearchResult[]
-      }
-    >
-  )
-
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-background rounded-lg max-w-4xl w-full max-h-[90vh] flex flex-col">
@@ -179,7 +151,7 @@ export default function SearchResults({
               </h2>
               {results && (
                 <p className="text-sm text-muted-foreground mt-1">
-                  Found {results.total} results for "{results.query}"
+                  Found {results.total} results for &quot;{results.query}&quot;
                 </p>
               )}
             </div>
@@ -260,51 +232,6 @@ export default function SearchResults({
             </div>
           )}
 
-          {/* Grouped view (alternative) */}
-          {false && groupedByDocument && Object.keys(groupedByDocument).length > 0 && (
-            <div className="space-y-6">
-              {Object.values(groupedByDocument).map((group) => (
-                <Card key={group.document_id}>
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center gap-2">
-                      <FileText className="h-5 w-5" />
-                      <CardTitle className="text-lg">{group.document_title}</CardTitle>
-                      <span
-                        className={`px-2 py-0.5 rounded-full text-xs font-medium ${getDocTypeStyles(
-                          group.document_type
-                        )}`}
-                      >
-                        {group.document_type}
-                      </span>
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      {group.chunks.length} matching sections
-                    </p>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      {group.chunks.slice(0, 3).map((chunk, idx) => (
-                        <div
-                          key={chunk.chunk_id}
-                          className="p-3 bg-muted rounded-md text-sm"
-                        >
-                          <p className="line-clamp-2">{chunk.chunk_text}</p>
-                          <div className="flex justify-between items-center mt-2 text-xs text-muted-foreground">
-                            <span>Similarity: {formatSimilarity(chunk.similarity)}</span>
-                          </div>
-                        </div>
-                      ))}
-                      {group.chunks.length > 3 && (
-                        <p className="text-sm text-muted-foreground text-center">
-                          +{group.chunks.length - 3} more matches
-                        </p>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
         </div>
 
         {/* Footer */}
